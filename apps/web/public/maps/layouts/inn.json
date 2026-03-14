@@ -1,0 +1,41 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.11.0",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "width": 64,
+  "height": 48,
+  "tilewidth": 16,
+  "tileheight": 16,
+  "infinite": false,
+  "nextlayerid": 3,
+  "nextobjectid": 7,
+  "properties": [
+    { "name": "layoutId", "type": "string", "value": "inn" },
+    { "name": "placeholder", "type": "bool", "value": true }
+  ],
+  "layers": [
+    {
+      "id": 1,
+      "name": "paths",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 1, "name": "entry-rug", "class": "road", "x": 456, "y": 320, "width": 112, "height": 352 },
+        { "id": 2, "name": "hall", "class": "road", "x": 232, "y": 238, "width": 560, "height": 88 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "props",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 3, "name": "desk", "class": "stall", "x": 336, "y": 150, "width": 352, "height": 46, "properties": [{ "name": "label", "type": "string", "value": "rest" }] },
+        { "id": 4, "name": "bed-left", "class": "bed", "x": 152, "y": 302, "width": 208, "height": 90 },
+        { "id": 5, "name": "bed-right", "class": "bed", "x": 664, "y": 302, "width": 208, "height": 90 },
+        { "id": 6, "name": "lamp", "class": "altar", "x": 480, "y": 102, "width": 64, "height": 64, "properties": [{ "name": "alpha", "type": "float", "value": 0.64 }] }
+      ]
+    }
+  ],
+  "tilesets": []
+}

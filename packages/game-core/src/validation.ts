@@ -1,4 +1,5 @@
 import type {
+  CollisionZone,
   EffectDefinition,
   EffectFormula,
   EncounterZone,
@@ -10,6 +11,13 @@ import type {
   TacticDefinition,
   WorldContent,
 } from "./types";
+import {
+  getCommonSceneTexturePaths,
+  getSceneMapJsonPath,
+  getSceneTerrainTexturePath,
+  SCENE_LAYOUT_IDS,
+  SCENE_THEME_IDS,
+} from "./content/sceneMetadata";
 
 export type ValidationIssue = {
   path: string;
@@ -20,6 +28,9 @@ const VALID_EFFECT_TRIGGERS = new Set<EffectDefinition["trigger"]>(["on_use", "o
 const VALID_EFFECT_TARGETS = new Set<EffectDefinition["target"]>(["self", "opponent"]);
 const VALID_FORMULA_SOURCES = new Set<EffectFormula["source"]>(["none", "self_attack", "target_attack"]);
 const VALID_TACTIC_TYPES = new Set<TacticDefinition["type"]>(["charge", "multi", "guard_break", "evade"]);
+const VALID_SCENE_LAYOUTS = new Set(SCENE_LAYOUT_IDS);
+const VALID_SCENE_THEMES = new Set(SCENE_THEME_IDS);
+const VALID_COMMON_SCENE_TEXTURES = new Set(getCommonSceneTexturePaths());
 
 function issue(path: string, message: string): ValidationIssue {
   return { path, message };
@@ -177,8 +188,75 @@ function validateSceneBounds(scene: SceneDefinition, path: string): ValidationIs
     issues.push(issue(`${path}.height`, "Scene height must be greater than 0."));
   }
 
+  if (!Number.isInteger(scene.tileSize) || scene.tileSize <= 0) {
+    issues.push(issue(`${path}.tileSize`, "Scene tileSize must be a positive integer."));
+  }
+
+  if (!VALID_SCENE_THEMES.has(scene.themeId)) {
+    issues.push(issue(`${path}.themeId`, `Unknown scene theme '${String(scene.themeId)}'.`));
+  }
+
   if (scene.spawn.x < 0 || scene.spawn.x > scene.width || scene.spawn.y < 0 || scene.spawn.y > scene.height) {
     issues.push(issue(`${path}.spawn`, "Scene spawn must be inside the scene bounds."));
+  }
+
+  if (!VALID_SCENE_LAYOUTS.has(scene.assets.layoutId)) {
+    issues.push(issue(`${path}.assets.layoutId`, `Unknown scene layout '${String(scene.assets.layoutId)}'.`));
+  }
+
+  if (scene.assets.mapJsonPath !== getSceneMapJsonPath(scene.assets.layoutId)) {
+    issues.push(issue(`${path}.assets.mapJsonPath`, "Scene mapJsonPath does not match the shared layout convention."));
+  }
+
+  if (scene.assets.terrainTexturePath !== getSceneTerrainTexturePath(scene.themeId)) {
+    issues.push(issue(`${path}.assets.terrainTexturePath`, "Scene terrainTexturePath does not match the shared theme convention."));
+  }
+
+  const commonTextureEntries: Array<[string, string]> = [
+    ["propsTexturePath", scene.assets.propsTexturePath],
+    ["playerTexturePath", scene.assets.playerTexturePath],
+    ["remotePlayerTexturePath", scene.assets.remotePlayerTexturePath],
+    ["npcTexturePath", scene.assets.npcTexturePath],
+    ["portalTexturePath", scene.assets.portalTexturePath],
+    ["encounterTexturePath", scene.assets.encounterTexturePath],
+  ];
+
+  commonTextureEntries.forEach(([field, value]) => {
+    if (!VALID_COMMON_SCENE_TEXTURES.has(value)) {
+      issues.push(issue(`${path}.assets.${field}`, "Scene texture path is outside the shared placeholder asset set."));
+    }
+  });
+
+  if (scene.assets.license !== "placeholder") {
+    issues.push(issue(`${path}.assets.license`, "Scene assets must currently be tagged as placeholder."));
+  }
+
+  if (!scene.assets.attribution.trim()) {
+    issues.push(issue(`${path}.assets.attribution`, "Scene assets must include attribution text."));
+  }
+
+  return issues;
+}
+
+function validateRectangleInsideScene(
+  zone: Pick<CollisionZone, "x" | "y" | "width" | "height">,
+  scene: SceneDefinition,
+  path: string,
+  label: string,
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (!isFiniteNumber(zone.x) || !isFiniteNumber(zone.y) || !isFiniteNumber(zone.width) || !isFiniteNumber(zone.height)) {
+    issues.push(issue(path, `${label} bounds must use finite numbers.`));
+    return issues;
+  }
+
+  if (zone.width <= 0 || zone.height <= 0) {
+    issues.push(issue(path, `${label} bounds must have positive width and height.`));
+  }
+
+  if (zone.x < 0 || zone.y < 0 || zone.x + zone.width > scene.width || zone.y + zone.height > scene.height) {
+    issues.push(issue(path, `${label} bounds must stay inside the scene.`));
   }
 
   return issues;
@@ -217,6 +295,16 @@ function validateLocation(location: LocationNode, key: string, world: WorldConte
 
   issues.push(...validateSceneBounds(location.scene, `${path}.scene`));
 
+  location.scene.portals.forEach((portal, index) => {
+    issues.push(...validateRectangleInsideScene(portal, location.scene, `${path}.scene.portals[${index}]`, "Portal"));
+  });
+
+  location.scene.npcs.forEach((npc, index) => {
+    if (npc.x < 0 || npc.x > location.scene.width || npc.y < 0 || npc.y > location.scene.height) {
+      issues.push(issue(`${path}.scene.npcs[${index}]`, "NPC anchor must stay inside the scene."));
+    }
+  });
+
   location.connections.forEach((connection, index) => {
     if (!world.locations[connection.toLocationKey]) {
       issues.push(issue(`${path}.connections[${index}].toLocationKey`, `Unknown location '${connection.toLocationKey}'.`));
@@ -230,8 +318,29 @@ function validateLocation(location: LocationNode, key: string, world: WorldConte
   });
 
   location.scene.encounterZones.forEach((zone, index) => {
+    issues.push(...validateRectangleInsideScene(zone, location.scene, `${path}.scene.encounterZones[${index}]`, "Encounter zone"));
     issues.push(...validateEncounterZone(zone, world, `${path}.scene.encounterZones[${index}]`));
   });
+
+  const collisionIds = new Set<string>();
+  location.scene.collisionZones.forEach((zone, index) => {
+    issues.push(...validateRectangleInsideScene(zone, location.scene, `${path}.scene.collisionZones[${index}]`, "Collision zone"));
+    if (collisionIds.has(zone.id)) {
+      issues.push(issue(`${path}.scene.collisionZones[${index}].id`, `Duplicate collision zone id '${zone.id}'.`));
+    } else {
+      collisionIds.add(zone.id);
+    }
+  });
+
+  const spawnInsideCollision = location.scene.collisionZones.some((zone) => (
+    location.scene.spawn.x >= zone.x
+    && location.scene.spawn.x <= zone.x + zone.width
+    && location.scene.spawn.y >= zone.y
+    && location.scene.spawn.y <= zone.y + zone.height
+  ));
+  if (spawnInsideCollision) {
+    issues.push(issue(`${path}.scene.spawn`, "Scene spawn cannot overlap a collision zone."));
+  }
 
   return issues;
 }

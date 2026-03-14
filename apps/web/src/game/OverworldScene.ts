@@ -1,5 +1,13 @@
 import Phaser from "phaser";
-import type { DialogueNpc, EncounterZone, Facing, PlayerSave, PresenceState, SceneDefinition, WorldContent } from "@rpg/game-core";
+import type {
+  DialogueNpc,
+  EncounterZone,
+  Facing,
+  PlayerSave,
+  PresenceState,
+  SceneDefinition,
+  WorldContent,
+} from "@rpg/game-core";
 
 type SceneCallbacks = {
   canMove: () => boolean;
@@ -7,6 +15,32 @@ type SceneCallbacks = {
   onSceneChange: (locationKey: string) => void;
   onInteractNpc: (npc: DialogueNpc) => void;
   onEncounter: (zone: EncounterZone) => void;
+};
+
+type TiledProperty = {
+  name: string;
+  value: string | number | boolean;
+};
+
+type TiledObject = {
+  id: number;
+  name: string;
+  class?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  properties?: TiledProperty[];
+};
+
+type TiledObjectLayer = {
+  name: string;
+  type: "objectgroup";
+  objects: TiledObject[];
+};
+
+type TiledMapData = {
+  layers: TiledObjectLayer[];
 };
 
 export class OverworldScene extends Phaser.Scene {
@@ -18,6 +52,7 @@ export class OverworldScene extends Phaser.Scene {
   private remoteSprites = new Map<string, Phaser.GameObjects.Container>();
   private portals: Array<{ zone: Phaser.Geom.Rectangle; locationKey: string; label: string }> = [];
   private encounterZones: Array<{ zone: Phaser.Geom.Rectangle; data: EncounterZone }> = [];
+  private collisionZones: Phaser.Geom.Rectangle[] = [];
   private npcMarkers: Array<{ sprite: Phaser.GameObjects.Sprite; npc: DialogueNpc }> = [];
   private cursorKeys!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keyW!: Phaser.Input.Keyboard.Key;
@@ -43,16 +78,6 @@ export class OverworldScene extends Phaser.Scene {
     this.keyEnter = this.input.keyboard!.addKey("ENTER");
     this.keySpace = this.input.keyboard!.addKey("SPACE");
     this.keyBattle = this.input.keyboard!.addKey("B");
-
-    this.playerSprite = this.add.sprite(512, 384, "player-local").setDisplaySize(26, 26);
-    this.hintText = this.add
-      .text(20, 20, "", {
-        color: "#f3efe0",
-        fontFamily: "IBM Plex Sans KR, Pretendard, sans-serif",
-        fontSize: "18px",
-      })
-      .setScrollFactor(0)
-      .setDepth(10);
 
     if (this.world && this.playerState) {
       this.buildLocation();
@@ -94,7 +119,14 @@ export class OverworldScene extends Phaser.Scene {
           return;
         }
 
-        const sprite = this.add.sprite(0, 0, "player-remote").setDisplaySize(22, 22);
+        const remoteTexturePath = this.sceneDefinition?.assets.remotePlayerTexturePath;
+        if (!remoteTexturePath) {
+          return;
+        }
+
+        const sprite = this.add
+          .sprite(0, 0, remoteTexturePath)
+          .setDisplaySize(22, 22);
         const label = this.add.text(0, -18, presence.username, {
           color: "#fefae0",
           fontFamily: "Space Mono, monospace",
@@ -113,7 +145,7 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    if (!this.playerState || !this.callbacks || !this.sceneDefinition) {
+    if (!this.playerState || !this.callbacks || !this.sceneDefinition || !this.playerSprite || !this.hintText) {
       return;
     }
 
@@ -140,8 +172,11 @@ export class OverworldScene extends Phaser.Scene {
     }
 
     const distance = speed * (delta / 1000);
-    const nextX = Phaser.Math.Clamp(this.playerSprite.x + velocityX * distance, 36, this.sceneDefinition.width - 36);
-    const nextY = Phaser.Math.Clamp(this.playerSprite.y + velocityY * distance, 36, this.sceneDefinition.height - 36);
+    const desiredX = Phaser.Math.Clamp(this.playerSprite.x + velocityX * distance, 36, this.sceneDefinition.width - 36);
+    const desiredY = Phaser.Math.Clamp(this.playerSprite.y + velocityY * distance, 36, this.sceneDefinition.height - 36);
+    const nextX = this.isBlocked(desiredX, this.playerSprite.y) ? this.playerSprite.x : desiredX;
+    const nextY = this.isBlocked(nextX, desiredY) ? this.playerSprite.y : desiredY;
+
     this.playerSprite.setPosition(nextX, nextY);
     this.playerState = {
       ...this.playerState,
@@ -199,33 +234,41 @@ export class OverworldScene extends Phaser.Scene {
     this.children.removeAll(true);
     this.portals = [];
     this.encounterZones = [];
+    this.collisionZones = [];
     this.npcMarkers = [];
     this.remoteSprites.forEach((sprite) => sprite.destroy());
     this.remoteSprites.clear();
 
-    const floor = this.add.rectangle(
-      location.scene.width / 2,
-      location.scene.height / 2,
-      location.scene.width - 48,
-      location.scene.height - 48,
-      Phaser.Display.Color.HexStringToColor("#f4e7d3").color,
-    );
-    floor.setStrokeStyle(6, Phaser.Display.Color.HexStringToColor("#22333b").color);
+    this.renderSceneMap(location.scene);
+
+    location.scene.collisionZones.forEach((zone) => {
+      const collisionHint = this.add.rectangle(
+        zone.x + zone.width / 2,
+        zone.y + zone.height / 2,
+        zone.width,
+        zone.height,
+        Phaser.Display.Color.HexStringToColor("#182026").color,
+        0.12,
+      ).setDepth(1);
+      collisionHint.setStrokeStyle(1, Phaser.Display.Color.HexStringToColor("#0f1720").color, 0.2);
+      this.collisionZones.push(new Phaser.Geom.Rectangle(zone.x, zone.y, zone.width, zone.height));
+    });
 
     location.scene.portals.forEach((portal) => {
-      this.add.rectangle(
-        portal.x + portal.width / 2,
-        portal.y + portal.height / 2,
-        portal.width,
-        portal.height,
-        Phaser.Display.Color.HexStringToColor("#264653").color,
-      );
+      this.add
+        .image(
+          portal.x + portal.width / 2,
+          portal.y + portal.height / 2,
+          location.scene.assets.portalTexturePath,
+        )
+        .setDisplaySize(Math.max(portal.width, 28), Math.max(portal.height, 28))
+        .setDepth(3);
       this.add.text(portal.x + portal.width / 2, portal.y + portal.height / 2, portal.label, {
         color: "#fefae0",
         fontFamily: "Space Mono, monospace",
         fontSize: "11px",
         align: "center",
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(4);
       this.portals.push({
         zone: new Phaser.Geom.Rectangle(portal.x, portal.y, portal.width, portal.height),
         locationKey: portal.toLocationKey,
@@ -234,14 +277,15 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     location.scene.encounterZones.forEach((encounterZone) => {
-      this.add.rectangle(
-        encounterZone.x + encounterZone.width / 2,
-        encounterZone.y + encounterZone.height / 2,
-        encounterZone.width,
-        encounterZone.height,
-        Phaser.Display.Color.HexStringToColor("#e76f51").color,
-        0.18,
-      );
+      this.add
+        .image(
+          encounterZone.x + encounterZone.width / 2,
+          encounterZone.y + encounterZone.height / 2,
+          location.scene.assets.encounterTexturePath,
+        )
+        .setDisplaySize(encounterZone.width, encounterZone.height)
+        .setAlpha(0.22)
+        .setDepth(2);
       this.encounterZones.push({
         zone: new Phaser.Geom.Rectangle(encounterZone.x, encounterZone.y, encounterZone.width, encounterZone.height),
         data: encounterZone,
@@ -249,16 +293,22 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     location.scene.npcs.forEach((npc) => {
-      const sprite = this.add.sprite(npc.x, npc.y, "npc-guide").setDisplaySize(24, 24);
+      const sprite = this.add
+        .sprite(npc.x, npc.y, location.scene.assets.npcTexturePath)
+        .setDisplaySize(24, 24)
+        .setDepth(6);
       this.add.text(npc.x, npc.y - 22, npc.name, {
         color: "#111827",
         fontFamily: "IBM Plex Sans KR, Pretendard, sans-serif",
         fontSize: "12px",
-      }).setOrigin(0.5, 1);
+      }).setOrigin(0.5, 1).setDepth(7);
       this.npcMarkers.push({ sprite, npc });
     });
 
-    this.playerSprite = this.add.sprite(this.playerState.position.x, this.playerState.position.y, "player-local").setDisplaySize(26, 26).setDepth(6);
+    this.playerSprite = this.add
+      .sprite(this.playerState.position.x, this.playerState.position.y, location.scene.assets.playerTexturePath)
+      .setDisplaySize(26, 26)
+      .setDepth(8);
     this.hintText = this.add
       .text(20, 20, "", {
         color: "#f3efe0",
@@ -266,8 +316,109 @@ export class OverworldScene extends Phaser.Scene {
         fontSize: "18px",
       })
       .setScrollFactor(0)
-      .setDepth(10);
+      .setDepth(20);
 
     this.cameras.main.setBounds(0, 0, location.scene.width, location.scene.height);
+  }
+
+  private renderSceneMap(scene: SceneDefinition): void {
+    this.add
+      .tileSprite(scene.width / 2, scene.height / 2, scene.width, scene.height, scene.assets.terrainTexturePath)
+      .setDepth(0);
+
+    const mapData = this.cache.json.get(scene.assets.mapJsonPath) as TiledMapData | undefined;
+    if (!mapData) {
+      return;
+    }
+
+    mapData.layers
+      .filter((layer) => layer.type === "objectgroup")
+      .forEach((layer) => {
+        if (layer.name === "paths") {
+          layer.objects.forEach((object) => {
+            this.add.rectangle(
+              object.x + object.width / 2,
+              object.y + object.height / 2,
+              object.width,
+              object.height,
+              this.colorForPath(object.class),
+              0.24,
+            ).setDepth(1);
+          });
+          return;
+        }
+
+        if (layer.name === "props") {
+          layer.objects.forEach((object) => {
+            const prop = this.add
+              .image(
+                object.x + object.width / 2,
+                object.y + object.height / 2,
+                scene.assets.propsTexturePath,
+              )
+              .setDisplaySize(Math.max(object.width, 18), Math.max(object.height, 18))
+              .setTint(this.colorForProp(object.class))
+              .setAlpha(this.readAlpha(object.properties))
+              .setDepth(2);
+
+            const label = this.readLabel(object.properties);
+            if (label) {
+              this.add.text(prop.x, prop.y + object.height / 2 + 6, label, {
+                color: "#f8fafc",
+                fontFamily: "Space Mono, monospace",
+                fontSize: "10px",
+              }).setOrigin(0.5, 0).setDepth(3);
+            }
+          });
+        }
+      });
+  }
+
+  private isBlocked(x: number, y: number): boolean {
+    const size = 20;
+    const hitbox = new Phaser.Geom.Rectangle(x - size / 2, y - size / 2, size, size);
+    return this.collisionZones.some((zone) => Phaser.Geom.Intersects.RectangleToRectangle(hitbox, zone));
+  }
+
+  private colorForPath(kind?: string): number {
+    switch (kind) {
+      case "water":
+        return Phaser.Display.Color.HexStringToColor("#5fa8d3").color;
+      case "road":
+        return Phaser.Display.Color.HexStringToColor("#d4a373").color;
+      case "ritual":
+        return Phaser.Display.Color.HexStringToColor("#9a5de0").color;
+      default:
+        return Phaser.Display.Color.HexStringToColor("#f2cc8f").color;
+    }
+  }
+
+  private colorForProp(kind?: string): number {
+    switch (kind) {
+      case "tree":
+        return Phaser.Display.Color.HexStringToColor("#386641").color;
+      case "rock":
+        return Phaser.Display.Color.HexStringToColor("#6b7280").color;
+      case "stall":
+        return Phaser.Display.Color.HexStringToColor("#b56576").color;
+      case "bed":
+        return Phaser.Display.Color.HexStringToColor("#84a59d").color;
+      case "altar":
+        return Phaser.Display.Color.HexStringToColor("#7b2cbf").color;
+      case "building":
+        return Phaser.Display.Color.HexStringToColor("#8d6e63").color;
+      default:
+        return Phaser.Display.Color.HexStringToColor("#f4d35e").color;
+    }
+  }
+
+  private readAlpha(properties?: TiledProperty[]): number {
+    const value = properties?.find((property) => property.name === "alpha")?.value;
+    return typeof value === "number" ? value : 0.84;
+  }
+
+  private readLabel(properties?: TiledProperty[]): string | null {
+    const value = properties?.find((property) => property.name === "label")?.value;
+    return typeof value === "string" && value.trim() ? value : null;
   }
 }
