@@ -1,0 +1,30 @@
+name: Feature Request
+description: 새로운 기능이나 개선 아이디어를 제안합니다.
+title: "[Feature] "
+labels: ["type:feature", "status:ready"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 어떤 문제를 해결하나요?
+      description: 플레이어나 개발자가 겪는 불편을 적어주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 제안 내용
+      description: 원하는 동작과 기대 효과를 적어주세요.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 관련 영역
+      options:
+        - world
+        - combat
+        - ui
+        - backend
+        - multiplayer
+        - github

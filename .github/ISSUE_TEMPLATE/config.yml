@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussion
+    url: https://github.com/Ron-kim-dlab/RPG/discussions
+    about: 긴 설계 토론이나 방향성 논의는 Discussions를 사용해주세요.
