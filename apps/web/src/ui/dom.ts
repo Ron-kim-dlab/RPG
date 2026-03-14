@@ -35,24 +35,20 @@ export class DomUi {
   constructor(root: HTMLElement, private readonly callbacks: UiCallbacks) {
     this.root = root;
     this.root.innerHTML = `
-      <div class="shell">
-        <aside class="sidebar">
-          <section class="panel auth-panel"></section>
-          <section class="panel hud-panel"></section>
-          <section class="panel action-panel"></section>
-          <section class="panel log-panel"></section>
-        </aside>
-        <main class="stage-wrap">
-          <div class="stage-header">
-            <div>
-              <h1>RPG Rebuild</h1>
-              <p>탑다운 탐험, 지역 채팅, 유저 실시간 표시</p>
-            </div>
-          </div>
+      <div class="viewport-shell">
+        <div class="atmosphere atmosphere-one"></div>
+        <div class="atmosphere atmosphere-two"></div>
+        <main class="game-stage">
           <div class="stage-canvas"></div>
-          <section class="panel dialogue-panel"></section>
-          <section class="panel battle-panel"></section>
-          <section class="panel chat-panel"></section>
+          <div class="ui-layer">
+            <header class="panel hud-panel"></header>
+            <aside class="panel log-panel"></aside>
+            <aside class="panel chat-panel"></aside>
+            <section class="panel action-panel"></section>
+            <section class="panel dialogue-panel"></section>
+            <section class="panel battle-panel"></section>
+            <section class="panel auth-panel"></section>
+          </div>
         </main>
       </div>
     `;
@@ -81,7 +77,7 @@ export class DomUi {
     learnedTactics: TacticDefinition[],
   ): void {
     this.renderAuth(state);
-    this.renderHud(state.player, currentLocation);
+    this.renderHud(state, currentLocation);
     this.renderActions(state.player, currentLocation, state.battle, equipmentForLocation, skillForLocation, equipped);
     this.renderDialogue(state);
     this.renderBattle(state.battle, learnedSkills, learnedTactics);
@@ -90,27 +86,37 @@ export class DomUi {
   }
 
   private renderAuth(state: AppState): void {
+    if (state.player) {
+      this.authPanel.classList.remove("visible");
+      this.authPanel.innerHTML = "";
+      return;
+    }
+
     const disabled = state.pending ? "disabled" : "";
+    this.authPanel.classList.add("visible");
     this.authPanel.innerHTML = `
-      <div class="panel-header">
-        <h2>계정</h2>
+      <div class="auth-card">
+        <div class="eyebrow">LOGIN</div>
+        <h2>탐험가 등록소</h2>
+        <p class="panel-note">접속 후에는 오버월드에서 바로 이동과 상호작용을 이어갈 수 있습니다.</p>
+        <div class="segmented">
+          <button class="${state.authMode === "login" ? "active" : ""}" data-auth-mode="login">로그인</button>
+          <button class="${state.authMode === "register" ? "active" : ""}" data-auth-mode="register">회원가입</button>
+        </div>
+        <form class="auth-form">
+          <label>
+            아이디
+            <input name="username" autocomplete="username" ${disabled} />
+          </label>
+          <label>
+            비밀번호
+            <input type="password" name="password" autocomplete="current-password" ${disabled} />
+          </label>
+          <button type="submit" class="primary" ${disabled}>
+            ${state.pending ? "처리 중..." : state.authMode === "login" ? "접속하기" : "모험 시작"}
+          </button>
+        </form>
       </div>
-      <div class="segmented">
-        <button class="${state.authMode === "login" ? "active" : ""}" data-auth-mode="login">로그인</button>
-        <button class="${state.authMode === "register" ? "active" : ""}" data-auth-mode="register">회원가입</button>
-      </div>
-      <form class="auth-form">
-        <label>
-          아이디
-          <input name="username" autocomplete="username" ${disabled} />
-        </label>
-        <label>
-          비밀번호
-          <input type="password" name="password" autocomplete="current-password" ${disabled} />
-        </label>
-        <button type="submit" ${disabled}>${state.authMode === "login" ? "접속" : "시작하기"}</button>
-      </form>
-      <p class="panel-note">${state.player ? `${state.player.username} 접속 중` : "로그인 후 게임이 시작됩니다."}</p>
     `;
 
     this.authPanel.querySelectorAll<HTMLButtonElement>("[data-auth-mode]").forEach((button) => {
@@ -129,32 +135,31 @@ export class DomUi {
     };
   }
 
-  private renderHud(player: PlayerSave | null, currentLocation: LocationNode | null): void {
-    if (!player) {
-      this.hudPanel.innerHTML = `
-        <div class="panel-header"><h2>상태</h2></div>
-        <p class="panel-note">접속하면 현재 위치와 스탯이 여기에 표시됩니다.</p>
-      `;
-      return;
-    }
+  private renderHud(state: AppState, currentLocation: LocationNode | null): void {
+    const nearbyPlayers = state.presence.filter((entry) => entry.username !== state.player?.username);
+    const locationTitle = currentLocation ? `${currentLocation.mainLocation} · ${currentLocation.subLocation}` : "월드 로딩 중";
 
     this.hudPanel.innerHTML = `
-      <div class="panel-header">
-        <h2>상태</h2>
-        <button class="ghost" data-save>저장</button>
+      <div class="hud-row">
+        <div class="hud-brand">
+          <div class="eyebrow">OVERWORLD MVP</div>
+          <h1>${locationTitle}</h1>
+          <p>${state.player ? "WASD 이동 · Space 대화 · Enter 전환 · B 교전" : "접속 후 오버월드 탐험이 활성화됩니다."}</p>
+        </div>
+        <div class="hud-meta">
+          <span class="status-pill ${state.connectionStatus}">${state.connectionStatus}</span>
+          <button class="ghost" data-save ${state.player ? "" : "disabled"}>저장</button>
+        </div>
       </div>
-      <div class="stat-grid">
-        <div><span>위치</span><strong>${currentLocation?.mainLocation ?? "-"}</strong></div>
-        <div><span>세부</span><strong>${currentLocation?.subLocation ?? "-"}</strong></div>
-        <div><span>레벨</span><strong>${player.level}</strong></div>
-        <div><span>코인</span><strong>${player.coins}</strong></div>
-        <div><span>HP</span><strong>${Math.round(player.currentHp)}</strong></div>
-        <div><span>MP</span><strong>${Math.round(player.currentMp)}</strong></div>
-        <div><span>공격</span><strong>${player.attack}</strong></div>
-        <div><span>방어</span><strong>${player.defense}</strong></div>
+      <div class="meter-grid">
+        ${state.player ? this.renderPlayerMeters(state.player, nearbyPlayers.length) : this.renderLoadingMeters(state)}
       </div>
     `;
-    (this.hudPanel.querySelector("[data-save]") as HTMLButtonElement).onclick = () => this.callbacks.onSave();
+
+    const saveButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-save]");
+    if (saveButton) {
+      saveButton.onclick = () => this.callbacks.onSave();
+    }
   }
 
   private renderActions(
@@ -166,7 +171,8 @@ export class DomUi {
     equipped: EquipmentDefinition[],
   ): void {
     if (!player || !currentLocation) {
-      this.actionPanel.innerHTML = `<div class="panel-header"><h2>행동</h2></div><p class="panel-note">게임에 접속하면 상점과 휴식 메뉴가 열립니다.</p>`;
+      this.actionPanel.classList.remove("visible");
+      this.actionPanel.innerHTML = "";
       return;
     }
 
@@ -176,9 +182,9 @@ export class DomUi {
         const owned = player.ownedEquipmentIds.includes(item.id);
         const equippedState = player.equippedEquipmentIds.includes(item.id);
         return `
-          <button data-equipment="${item.id}">
-            ${owned ? (equippedState ? "장착 해제/교체" : "장착") : `구매 ${item.cost}`}
-            <span>${item.name}</span>
+          <button class="dock-card" data-equipment="${item.id}">
+            <strong>${item.name}</strong>
+            <span>${owned ? (equippedState ? "장착 해제/교체" : "장착") : `${item.cost} 코인 구매`}</span>
           </button>
         `;
       })
@@ -187,24 +193,37 @@ export class DomUi {
       .map((skill) => {
         const learned = player.learnedSkillIds.includes(skill.id);
         return `
-          <button data-skill="${skill.id}">
-            ${learned ? "습득 완료" : `습득 ${skill.cost}`}
-            <span>${skill.name}</span>
+          <button class="dock-card" data-skill="${skill.id}">
+            <strong>${skill.name}</strong>
+            <span>${learned ? "습득 완료" : `${skill.cost} 코인 습득`}</span>
           </button>
         `;
       })
       .join("");
+    const equippedPills = equipped.length > 0
+      ? equipped.map((item) => `<span class="pill">${item.name}</span>`).join("")
+      : `<span class="pill muted">장착 없음</span>`;
 
+    const hasContextActions = restingVisible || equipmentButtons || skillButtons;
+    this.actionPanel.classList.add("visible");
     this.actionPanel.innerHTML = `
-      <div class="panel-header">
-        <h2>현장 메뉴</h2>
+      <div class="dock-header">
+        <div>
+          <div class="eyebrow">FIELD ACTIONS</div>
+          <h2>${currentLocation.subLocation}</h2>
+        </div>
+        <div class="dock-summary">
+          <span class="pill">${currentLocation.mainLocation}</span>
+          ${equippedPills}
+        </div>
       </div>
-      <div class="panel-note">전투 중에는 전투 패널을 사용하세요. 탐험 중에는 위치에 맞는 상호작용이 열립니다.</div>
-      ${restingVisible ? `<button class="action-wide" data-rest>숙박 20 코인</button>` : ""}
-      ${equipmentButtons ? `<div class="action-stack"><h3>무기 상점</h3>${equipmentButtons}</div>` : ""}
-      ${skillButtons ? `<div class="action-stack"><h3>기술 상점</h3>${skillButtons}</div>` : ""}
-      ${equipped.length > 0 ? `<div class="action-stack"><h3>장착 중</h3>${equipped.map((item) => `<span class="pill">${item.name}</span>`).join("")}</div>` : ""}
-      ${battle ? `<p class="panel-note">전투가 진행 중이라 상점/휴식은 비활성 상태입니다.</p>` : ""}
+      <div class="dock-grid">
+        ${restingVisible ? `<button class="dock-card accent" data-rest><strong>숙박</strong><span>20 코인으로 HP/MP 회복</span></button>` : ""}
+        ${equipmentButtons}
+        ${skillButtons}
+        ${!hasContextActions ? `<div class="dock-card static"><strong>탐험 구간</strong><span>출구 진입 후 Enter 로 씬 전환, NPC 근처에서 Space 로 대화</span></div>` : ""}
+        ${battle ? `<div class="dock-card static danger"><strong>전투 진행 중</strong><span>오른쪽 전투 오버레이에서 행동을 선택하세요.</span></div>` : ""}
+      </div>
     `;
 
     this.actionPanel.querySelectorAll<HTMLButtonElement>("[data-equipment]").forEach((button) => {
@@ -232,9 +251,13 @@ export class DomUi {
     const currentLine = state.dialogue.lines[state.dialogue.index] ?? "";
     this.dialoguePanel.classList.add("visible");
     this.dialoguePanel.innerHTML = `
-      <div class="panel-header"><h2>${state.dialogue.title}</h2></div>
+      <div class="eyebrow">DIALOGUE</div>
+      <div class="panel-header">
+        <h2>${state.dialogue.title}</h2>
+        <span>${state.dialogue.index + 1} / ${state.dialogue.lines.length}</span>
+      </div>
       <p class="dialogue-line">${currentLine}</p>
-      <button data-dialogue-next>${state.dialogue.index >= state.dialogue.lines.length - 1 ? "닫기" : "다음"}</button>
+      <button class="primary" data-dialogue-next>${state.dialogue.index >= state.dialogue.lines.length - 1 ? "닫기" : "다음"}</button>
     `;
     (this.dialoguePanel.querySelector("[data-dialogue-next]") as HTMLButtonElement).onclick = () => this.callbacks.onDialogueNext();
   }
@@ -248,12 +271,16 @@ export class DomUi {
 
     this.battlePanel.classList.add("visible");
     this.battlePanel.innerHTML = `
-      <div class="panel-header"><h2>전투</h2></div>
+      <div class="eyebrow">BATTLE</div>
+      <div class="panel-header">
+        <h2>${battle.enemy.name}</h2>
+        <span>턴 ${battle.turnNumber}</span>
+      </div>
       <div class="battle-stats">
-        <div><span>적</span><strong>${battle.enemy.name}</strong></div>
         <div><span>적 HP</span><strong>${Math.round(battle.enemy.currentHp)} / ${battle.enemy.maxHp}</strong></div>
         <div><span>내 HP</span><strong>${Math.round(battle.player.currentHp)} / ${battle.player.maxHp}</strong></div>
         <div><span>내 MP</span><strong>${Math.round(battle.player.currentMp)} / ${battle.player.maxMp}</strong></div>
+        <div><span>전황</span><strong>${battle.isBoss ? "보스전" : "일반전"}</strong></div>
       </div>
       <div class="battle-actions">
         <button data-battle-basic="attack">공격</button>
@@ -282,20 +309,28 @@ export class DomUi {
   }
 
   private renderChat(state: AppState): void {
+    const nearbyPlayers = state.presence.filter((entry) => entry.username !== state.player?.username);
+
     this.chatPanel.innerHTML = `
       <div class="panel-header">
-        <h2>지역 채팅</h2>
-        <span class="status-dot ${state.connectionStatus}">${state.connectionStatus}</span>
+        <div>
+          <div class="eyebrow">SOCIAL</div>
+          <h2>지역 채팅</h2>
+        </div>
+        <span class="status-pill ${state.connectionStatus}">${nearbyPlayers.length} nearby</span>
+      </div>
+      <div class="presence-strip">
+        ${nearbyPlayers.map((presence) => `<span class="pill">${presence.username}</span>`).join("") || `<span class="pill muted">같은 씬의 다른 유저 없음</span>`}
       </div>
       <div class="chat-list">
         ${state.chatMessages
-          .slice(-12)
+          .slice(-8)
           .map((message) => `<div class="chat-item"><strong>${message.username}</strong><span>${message.text}</span></div>`)
-          .join("") || `<p class="panel-note">같은 씬의 다른 유저와 대화할 수 있습니다.</p>`}
+          .join("") || `<p class="panel-note">같은 씬의 유저에게 말을 걸 수 있습니다.</p>`}
       </div>
       <form class="chat-form">
         <input name="text" placeholder="같은 씬의 유저에게 말하기" ${state.player ? "" : "disabled"} />
-        <button type="submit" ${state.player ? "" : "disabled"}>전송</button>
+        <button type="submit" class="primary" ${state.player ? "" : "disabled"}>전송</button>
       </form>
     `;
     const form = this.chatPanel.querySelector(".chat-form") as HTMLFormElement;
@@ -312,10 +347,34 @@ export class DomUi {
 
   private renderLogs(logs: string[]): void {
     this.logPanel.innerHTML = `
-      <div class="panel-header"><h2>이벤트 로그</h2></div>
-      <div class="log-list">
-        ${logs.map((entry) => `<div class="log-item">${entry}</div>`).join("") || `<p class="panel-note">전투, 상점, 저장 결과가 여기에 기록됩니다.</p>`}
+      <div class="panel-header">
+        <div>
+          <div class="eyebrow">EVENT FEED</div>
+          <h2>최근 이벤트</h2>
+        </div>
       </div>
+      <div class="log-list">
+        ${logs.slice(0, 6).map((entry) => `<div class="log-item">${entry}</div>`).join("") || `<p class="panel-note">저장, 이동, 전투 결과가 여기에 쌓입니다.</p>`}
+      </div>
+    `;
+  }
+
+  private renderPlayerMeters(player: PlayerSave, nearbyCount: number): string {
+    return `
+      <div class="meter-card"><span>Lv</span><strong>${player.level}</strong></div>
+      <div class="meter-card"><span>HP</span><strong>${Math.round(player.currentHp)}</strong></div>
+      <div class="meter-card"><span>MP</span><strong>${Math.round(player.currentMp)}</strong></div>
+      <div class="meter-card"><span>Coin</span><strong>${player.coins}</strong></div>
+      <div class="meter-card"><span>Atk</span><strong>${player.attack}</strong></div>
+      <div class="meter-card"><span>Nearby</span><strong>${nearbyCount}</strong></div>
+    `;
+  }
+
+  private renderLoadingMeters(state: AppState): string {
+    return `
+      <div class="meter-card"><span>World</span><strong>${state.world ? "ready" : "loading"}</strong></div>
+      <div class="meter-card"><span>Status</span><strong>${state.pending ? "auth" : "idle"}</strong></div>
+      <div class="meter-card"><span>Scene</span><strong>${state.world ? "login" : "boot"}</strong></div>
     `;
   }
 }
