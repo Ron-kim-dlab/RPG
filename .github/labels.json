@@ -1,0 +1,19 @@
+[
+  { "name": "type:feature", "color": "1f7a8c", "description": "Player-facing feature work" },
+  { "name": "type:bug", "color": "d7263d", "description": "Broken behavior or regression" },
+  { "name": "type:design", "color": "f4a261", "description": "UX, art, visual or flow design work" },
+  { "name": "type:chore", "color": "6c757d", "description": "Maintenance and housekeeping" },
+  { "name": "type:infra", "color": "5e548e", "description": "Infrastructure, CI, deployment, or repo automation" },
+  { "name": "area:world", "color": "2a9d8f", "description": "Maps, story, NPCs, world content" },
+  { "name": "area:combat", "color": "e76f51", "description": "Battle rules, balance, progression" },
+  { "name": "area:ui", "color": "457b9d", "description": "Client UI and player experience" },
+  { "name": "area:backend", "color": "264653", "description": "Server APIs, auth, persistence" },
+  { "name": "area:multiplayer", "color": "7b2cbf", "description": "Realtime presence and chat" },
+  { "name": "area:github", "color": "0a9396", "description": "GitHub templates, workflows, repo rules" },
+  { "name": "priority:p0", "color": "b5179e", "description": "Critical, blocks release or mainline" },
+  { "name": "priority:p1", "color": "f77f00", "description": "Important, should land soon" },
+  { "name": "priority:p2", "color": "adb5bd", "description": "Normal priority backlog item" },
+  { "name": "status:ready", "color": "4caf50", "description": "Ready to implement" },
+  { "name": "status:blocked", "color": "6a040f", "description": "Blocked by another dependency or decision" },
+  { "name": "status:needs-info", "color": "577590", "description": "Waiting on clarification or reproduction" }
+]

@@ -1,0 +1,34 @@
+name: Bug Report
+description: 버그나 회귀를 제보합니다.
+title: "[Bug] "
+labels: ["type:bug", "status:needs-info"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 무엇이 잘못되었나요?
+      description: 재현 가능한 현상을 간단히 적어주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 방법
+      description: 순서대로 적어주세요.
+      placeholder: |
+        1. 로그인
+        2. 특정 맵으로 이동
+        3. B 키 입력
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 결과
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 환경
+      placeholder: Windows 11 / Chrome 134 / local server

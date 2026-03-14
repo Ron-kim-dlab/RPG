@@ -1,11 +1,21 @@
 {
-  "name": "rpg-game",
-  "version": "1.0.0",
-  "description": "RPG Game with API",
-  "main": "server.js",
+  "name": "rpg-rebuild-workspace",
+  "version": "2.0.0",
+  "private": true,
+  "description": "2D browser RPG monorepo with multiplayer-ready services",
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev:web": "corepack pnpm --filter @rpg/web dev",
+    "dev:server": "corepack pnpm --filter @rpg/server dev",
+    "build": "corepack pnpm -r build",
+    "lint": "corepack pnpm -r lint",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r test",
+    "test:e2e": "playwright test",
+    "legacy:start": "node server.js",
+    "legacy:dev": "nodemon server.js",
+    "github:labels": "node scripts/sync-github-labels.mjs",
+    "github:ruleset": "node scripts/apply-github-ruleset.mjs"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
@@ -14,6 +24,10 @@
     "mongoose": "^6.9.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "@eslint/js": "^9.28.0",
+    "@playwright/test": "^1.52.0",
+    "globals": "^16.2.0",
+    "nodemon": "^2.0.22",
+    "typescript-eslint": "^8.33.1"
   }
 }

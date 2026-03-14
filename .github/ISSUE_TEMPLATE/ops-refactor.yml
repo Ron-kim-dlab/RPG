@@ -1,0 +1,24 @@
+name: Ops / Refactor
+description: 인프라, 리팩터링, 자동화, 품질 작업을 기록합니다.
+title: "[Ops] "
+labels: ["type:infra", "status:ready"]
+body:
+  - type: textarea
+    id: reason
+    attributes:
+      label: 왜 필요한가요?
+      description: 운영/품질/속도 관점에서 이유를 적어주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 작업 범위
+      description: 바뀌는 부분과 바뀌지 않는 부분을 적어주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: 완료 기준
+      description: 어떤 검증이 끝나면 닫을 수 있는지 적어주세요.
