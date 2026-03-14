@@ -1,0 +1,41 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.11.0",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "width": 64,
+  "height": 48,
+  "tilewidth": 16,
+  "tileheight": 16,
+  "infinite": false,
+  "nextlayerid": 3,
+  "nextobjectid": 7,
+  "properties": [
+    { "name": "layoutId", "type": "string", "value": "skill_shop" },
+    { "name": "placeholder", "type": "bool", "value": true }
+  ],
+  "layers": [
+    {
+      "id": 1,
+      "name": "paths",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 1, "name": "focus-lane", "class": "ritual", "x": 436, "y": 96, "width": 152, "height": 592 },
+        { "id": 2, "name": "study-ring", "class": "road", "x": 312, "y": 228, "width": 400, "height": 128 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "props",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 3, "name": "altar", "class": "altar", "x": 420, "y": 150, "width": 184, "height": 64, "properties": [{ "name": "label", "type": "string", "value": "focus" }] },
+        { "id": 4, "name": "archive-left", "class": "building", "x": 128, "y": 136, "width": 82, "height": 198 },
+        { "id": 5, "name": "archive-right", "class": "building", "x": 814, "y": 136, "width": 82, "height": 198 },
+        { "id": 6, "name": "sigil", "class": "altar", "x": 462, "y": 270, "width": 100, "height": 100, "properties": [{ "name": "alpha", "type": "float", "value": 0.72 }] }
+      ]
+    }
+  ],
+  "tilesets": []
+}

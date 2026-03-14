@@ -1,0 +1,41 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.11.0",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "width": 64,
+  "height": 48,
+  "tilewidth": 16,
+  "tileheight": 16,
+  "infinite": false,
+  "nextlayerid": 3,
+  "nextobjectid": 7,
+  "properties": [
+    { "name": "layoutId", "type": "string", "value": "town_gate" },
+    { "name": "placeholder", "type": "bool", "value": true }
+  ],
+  "layers": [
+    {
+      "id": 1,
+      "name": "paths",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 1, "name": "main-road", "class": "road", "x": 432, "y": 48, "width": 160, "height": 656 },
+        { "id": 2, "name": "cross-road", "class": "road", "x": 176, "y": 288, "width": 672, "height": 112 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "props",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 3, "name": "west-house", "class": "building", "x": 112, "y": 96, "width": 192, "height": 160, "properties": [{ "name": "label", "type": "string", "value": "west" }] },
+        { "id": 4, "name": "east-house", "class": "building", "x": 720, "y": 96, "width": 192, "height": 160, "properties": [{ "name": "label", "type": "string", "value": "east" }] },
+        { "id": 5, "name": "planter", "class": "tree", "x": 448, "y": 320, "width": 128, "height": 80, "properties": [{ "name": "alpha", "type": "float", "value": 0.76 }] },
+        { "id": 6, "name": "notice", "class": "stall", "x": 468, "y": 120, "width": 88, "height": 48, "properties": [{ "name": "label", "type": "string", "value": "gate" }] }
+      ]
+    }
+  ],
+  "tilesets": []
+}

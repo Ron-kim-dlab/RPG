@@ -92,6 +92,28 @@ export type EnemyDefinition = {
   isBoss?: boolean;
 };
 
+export type SceneThemeId =
+  | "village"
+  | "grassland"
+  | "forest"
+  | "desert"
+  | "mountain"
+  | "swamp"
+  | "river"
+  | "sea"
+  | "sky"
+  | "space"
+  | "castle";
+
+export type SceneLayoutId =
+  | "town_gate"
+  | "shop"
+  | "inn"
+  | "skill_shop"
+  | "plaza"
+  | "field"
+  | "boss_arena";
+
 export type ScenePortal = {
   id: string;
   label: string;
@@ -119,15 +141,41 @@ export type EncounterZone = {
   enemyIds: string[];
 };
 
-export type SceneDefinition = {
-  sceneId: string;
+export type CollisionZone = {
+  id: string;
+  x: number;
+  y: number;
   width: number;
   height: number;
+};
+
+export type SceneAssetBundle = {
+  layoutId: SceneLayoutId;
+  mapJsonPath: string;
+  terrainTexturePath: string;
+  propsTexturePath: string;
+  playerTexturePath: string;
+  remotePlayerTexturePath: string;
+  npcTexturePath: string;
+  portalTexturePath: string;
+  encounterTexturePath: string;
+  license: "placeholder";
+  attribution: string;
+};
+
+export type SceneDefinition = {
+  sceneId: string;
+  themeId: SceneThemeId;
+  width: number;
+  height: number;
+  tileSize: number;
   backgroundColor: string;
   spawn: { x: number; y: number };
   portals: ScenePortal[];
   npcs: DialogueNpc[];
   encounterZones: EncounterZone[];
+  collisionZones: CollisionZone[];
+  assets: SceneAssetBundle;
 };
 
 export type LocationConnection = {

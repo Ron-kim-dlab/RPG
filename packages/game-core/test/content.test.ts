@@ -22,6 +22,8 @@ describe("legacy content conversion", () => {
     expect(Object.keys(world.locations).length).toBeGreaterThan(10);
     expect(world.skills.every((entry) => entry.effects.length > 0)).toBe(true);
     expect(world.equipment.every((entry) => entry.effects.length >= 0)).toBe(true);
+    expect(Object.values(world.locations).every((location) => location.scene.assets.mapJsonPath.endsWith(".json"))).toBe(true);
+    expect(Object.values(world.locations).every((location) => location.scene.collisionZones.length > 0)).toBe(true);
     expect(validateWorldContent(world)).toEqual([]);
   });
 
@@ -46,5 +48,36 @@ describe("legacy content conversion", () => {
 
     expect(issues.some((entry) => entry.path === "startLocationKey")).toBe(true);
     expect(issues.some((entry) => entry.message.includes("enemy-missing"))).toBe(true);
+  });
+
+  it("reports invalid scene asset metadata through validation", () => {
+    const world = buildWorldContentFromLegacy({
+      map,
+      monsters: monster,
+      bosses: boss,
+      equipment: equipment as never,
+      skills: skill as never,
+      tactics: tactics as never,
+    });
+
+    const start = world.locations["시작의 마을::마을 입구"]!;
+    const issues = validateWorldContent({
+      ...world,
+      locations: {
+        ...world.locations,
+        [start.key]: {
+          ...start,
+          scene: {
+            ...start.scene,
+            assets: {
+              ...start.scene.assets,
+              mapJsonPath: "/maps/layouts/missing.json",
+            },
+          },
+        },
+      },
+    });
+
+    expect(issues.some((entry) => entry.path.endsWith("assets.mapJsonPath"))).toBe(true);
   });
 });

@@ -1,0 +1,41 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.11.0",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "width": 64,
+  "height": 48,
+  "tilewidth": 16,
+  "tileheight": 16,
+  "infinite": false,
+  "nextlayerid": 3,
+  "nextobjectid": 7,
+  "properties": [
+    { "name": "layoutId", "type": "string", "value": "shop" },
+    { "name": "placeholder", "type": "bool", "value": true }
+  ],
+  "layers": [
+    {
+      "id": 1,
+      "name": "paths",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 1, "name": "entry-rug", "class": "road", "x": 456, "y": 320, "width": 112, "height": 352 },
+        { "id": 2, "name": "service-lane", "class": "road", "x": 248, "y": 240, "width": 528, "height": 96 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "props",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 3, "name": "counter", "class": "stall", "x": 320, "y": 154, "width": 384, "height": 48, "properties": [{ "name": "label", "type": "string", "value": "forge" }] },
+        { "id": 4, "name": "rack-left", "class": "rock", "x": 128, "y": 138, "width": 72, "height": 188 },
+        { "id": 5, "name": "rack-right", "class": "rock", "x": 824, "y": 138, "width": 72, "height": 188 },
+        { "id": 6, "name": "anvil", "class": "building", "x": 444, "y": 100, "width": 136, "height": 42, "properties": [{ "name": "alpha", "type": "float", "value": 0.7 }] }
+      ]
+    }
+  ],
+  "tilesets": []
+}

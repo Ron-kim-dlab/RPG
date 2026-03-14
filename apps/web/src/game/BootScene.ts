@@ -1,38 +1,23 @@
 import Phaser from "phaser";
+import { getSceneAssetManifest } from "@rpg/game-core";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
     super("boot");
   }
 
+  preload(): void {
+    const manifest = getSceneAssetManifest();
+    manifest.jsonPaths.forEach((path) => {
+      this.load.json(path, path);
+    });
+
+    manifest.texturePaths.forEach((path) => {
+      this.load.svg(path, path);
+    });
+  }
+
   create(): void {
-    const graphics = this.add.graphics();
-
-    graphics.fillStyle(0xf3efe0, 1);
-    graphics.fillRect(0, 0, 16, 16);
-    graphics.generateTexture("tile-floor", 16, 16);
-
-    graphics.clear();
-    graphics.fillStyle(0xe76f51, 1);
-    graphics.fillRect(0, 0, 16, 16);
-    graphics.generateTexture("player-local", 16, 16);
-
-    graphics.clear();
-    graphics.fillStyle(0x2a9d8f, 1);
-    graphics.fillRect(0, 0, 16, 16);
-    graphics.generateTexture("player-remote", 16, 16);
-
-    graphics.clear();
-    graphics.fillStyle(0xe9c46a, 1);
-    graphics.fillRect(0, 0, 20, 20);
-    graphics.generateTexture("npc-guide", 20, 20);
-
-    graphics.clear();
-    graphics.fillStyle(0x264653, 1);
-    graphics.fillRect(0, 0, 28, 28);
-    graphics.generateTexture("portal", 28, 28);
-
-    graphics.destroy();
     this.scene.start("overworld");
   }
 }

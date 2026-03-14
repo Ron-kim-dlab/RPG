@@ -1,0 +1,41 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.11.0",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "width": 64,
+  "height": 48,
+  "tilewidth": 16,
+  "tileheight": 16,
+  "infinite": false,
+  "nextlayerid": 3,
+  "nextobjectid": 7,
+  "properties": [
+    { "name": "layoutId", "type": "string", "value": "plaza" },
+    { "name": "placeholder", "type": "bool", "value": true }
+  ],
+  "layers": [
+    {
+      "id": 1,
+      "name": "paths",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 1, "name": "north-south", "class": "road", "x": 448, "y": 48, "width": 128, "height": 656 },
+        { "id": 2, "name": "east-west", "class": "road", "x": 168, "y": 304, "width": 688, "height": 96 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "props",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 3, "name": "fountain", "class": "altar", "x": 432, "y": 280, "width": 160, "height": 112, "properties": [{ "name": "label", "type": "string", "value": "square" }] },
+        { "id": 4, "name": "market-left", "class": "stall", "x": 140, "y": 156, "width": 132, "height": 84 },
+        { "id": 5, "name": "market-right", "class": "stall", "x": 752, "y": 156, "width": 132, "height": 84 },
+        { "id": 6, "name": "banner", "class": "building", "x": 462, "y": 110, "width": 100, "height": 56, "properties": [{ "name": "alpha", "type": "float", "value": 0.72 }] }
+      ]
+    }
+  ],
+  "tilesets": []
+}

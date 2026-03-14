@@ -12,6 +12,12 @@ import type {
   TacticDefinition,
   WorldContent,
 } from "../types";
+import {
+  createSceneLayout,
+  getSceneAssetBundle,
+  getSceneLayoutId,
+  getSceneThemeId,
+} from "./sceneMetadata";
 import { toLocationKey, toStableId } from "../utils/id";
 import { assertValidWorldContent } from "../validation";
 
@@ -312,25 +318,32 @@ function areaColor(mainLocation: string): string {
   return colors[mainLocation] ?? "#34506b";
 }
 
-function buildScene(mainLocation: string, subLocation: string, story: string[], enemyIds: string[], connectionKeys: Array<{ label: string; toLocationKey: string }>) {
+function buildScene(
+  mainLocation: string,
+  subLocation: string,
+  story: string[],
+  enemyIds: string[],
+  connectionKeys: Array<{ label: string; toLocationKey: string }>,
+  hasBoss: boolean,
+) {
   const sceneId = toStableId("scene", `${mainLocation}-${subLocation}`);
-  const width = 1024;
-  const height = 768;
-  const portalSlots = [
-    { x: width / 2 - 50, y: 12, width: 100, height: 24 },
-    { x: width - 36, y: height / 2 - 50, width: 24, height: 100 },
-    { x: width / 2 - 50, y: height - 36, width: 100, height: 24 },
-    { x: 12, y: height / 2 - 50, width: 24, height: 100 },
-  ];
+  const themeId = getSceneThemeId(mainLocation);
+  const layoutId = getSceneLayoutId(subLocation, {
+    hasEncounter: enemyIds.length > 0,
+    hasBoss,
+  });
+  const layout = createSceneLayout(layoutId);
 
   return {
     sceneId,
-    width,
-    height,
+    themeId,
+    width: layout.width,
+    height: layout.height,
+    tileSize: layout.tileSize,
     backgroundColor: areaColor(mainLocation),
-    spawn: { x: width / 2, y: height - 120 },
+    spawn: { ...layout.spawn },
     portals: connectionKeys.map((connection, index) => {
-      const slot = portalSlots[index % portalSlots.length]!;
+      const slot = layout.portalSlots[index % layout.portalSlots.length]!;
       return {
         id: toStableId("portal", `${sceneId}-${connection.toLocationKey}`),
         label: connection.label,
@@ -343,8 +356,8 @@ function buildScene(mainLocation: string, subLocation: string, story: string[], 
           {
             id: toStableId("npc", `${sceneId}-guide`),
             name: `${subLocation} 안내자`,
-            x: width / 2,
-            y: 160,
+            x: layout.npcAnchor.x,
+            y: layout.npcAnchor.y,
             lines: story,
           },
         ]
@@ -353,14 +366,22 @@ function buildScene(mainLocation: string, subLocation: string, story: string[], 
       ? [
           {
             id: toStableId("encounter", sceneId),
-            x: width / 2 - 180,
-            y: height / 2,
-            width: 360,
-            height: 180,
+            x: layout.encounterZone.x,
+            y: layout.encounterZone.y,
+            width: layout.encounterZone.width,
+            height: layout.encounterZone.height,
             enemyIds,
           },
         ]
       : [],
+    collisionZones: layout.collisionZones.map((zone) => ({
+      id: toStableId("collision", `${sceneId}-${zone.id}`),
+      x: zone.x,
+      y: zone.y,
+      width: zone.width,
+      height: zone.height,
+    })),
+    assets: getSceneAssetBundle(themeId, layoutId),
   };
 }
 
@@ -542,6 +563,7 @@ export function buildWorldContentFromLegacy(input: {
             label: connection.sub,
             toLocationKey: connection.toLocationKey,
           })),
+          Boolean(location.보스),
         ),
       };
     });

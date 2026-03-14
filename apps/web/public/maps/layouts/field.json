@@ -1,0 +1,41 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.11.0",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "width": 64,
+  "height": 48,
+  "tilewidth": 16,
+  "tileheight": 16,
+  "infinite": false,
+  "nextlayerid": 3,
+  "nextobjectid": 7,
+  "properties": [
+    { "name": "layoutId", "type": "string", "value": "field" },
+    { "name": "placeholder", "type": "bool", "value": true }
+  ],
+  "layers": [
+    {
+      "id": 1,
+      "name": "paths",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 1, "name": "trail-main", "class": "road", "x": 428, "y": 48, "width": 168, "height": 656 },
+        { "id": 2, "name": "stream-band", "class": "water", "x": 224, "y": 468, "width": 576, "height": 60 }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "props",
+      "type": "objectgroup",
+      "objects": [
+        { "id": 3, "name": "tree-west", "class": "tree", "x": 128, "y": 170, "width": 138, "height": 180 },
+        { "id": 4, "name": "tree-east", "class": "tree", "x": 758, "y": 150, "width": 138, "height": 196 },
+        { "id": 5, "name": "stone-bank", "class": "rock", "x": 424, "y": 540, "width": 188, "height": 54 },
+        { "id": 6, "name": "camp", "class": "stall", "x": 478, "y": 120, "width": 72, "height": 52, "properties": [{ "name": "label", "type": "string", "value": "camp" }] }
+      ]
+    }
+  ],
+  "tilesets": []
+}
