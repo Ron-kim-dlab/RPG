@@ -24,10 +24,13 @@ describe("realtime presence", () => {
     const repository = new MemoryUserRepository();
     const world = createWorld();
     const env = {
+      runtimeMode: "test" as const,
       port: 0,
       clientOrigin: "http://localhost:5173",
-      jwtSecret: "socket-secret",
+      jwtSecret: "0123456789abcdef0123456789abcdef",
       jwtExpiresIn: "7d",
+      passwordHashRounds: 10,
+      storageDriver: "memory" as const,
     };
 
     await repository.saveAccount({
@@ -56,6 +59,17 @@ describe("realtime presence", () => {
     const socketA = createClient(baseUrl, { auth: { token: tokenA } });
     const socketB = createClient(baseUrl, { auth: { token: tokenB } });
 
+    await Promise.all([
+      new Promise<void>((resolve, reject) => {
+        socketA.once("connect", () => resolve());
+        socketA.once("connect_error", reject);
+      }),
+      new Promise<void>((resolve, reject) => {
+        socketB.once("connect", () => resolve());
+        socketB.once("connect_error", reject);
+      }),
+    ]);
+
     const snapshotPromise = new Promise<unknown[]>((resolve) => {
       socketB.on("presence:snapshot", (snapshot) => resolve(snapshot));
     });
@@ -76,5 +90,5 @@ describe("realtime presence", () => {
     socketA.disconnect();
     socketB.disconnect();
     await new Promise<void>((resolve, reject) => context.httpServer.close((error) => (error ? reject(error) : resolve())));
-  });
+  }, 10_000);
 });

@@ -40,7 +40,14 @@ export class MongoUserRepository implements UserRepository {
     if (mongoose.connection.readyState === 1) {
       return;
     }
-    await mongoose.connect(this.mongodbUri);
+
+    try {
+      await mongoose.connect(this.mongodbUri);
+    } catch (error) {
+      throw new Error("Failed to connect to MongoDB. Check MONGODB_URI and database availability.", {
+        cause: error,
+      });
+    }
   }
 
   async findByUsername(username: string): Promise<StoredAccount | null> {
