@@ -255,7 +255,7 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     location.scene.portals.forEach((portal) => {
-      this.add
+      const portalSprite = this.add
         .image(
           portal.x + portal.width / 2,
           portal.y + portal.height / 2,
@@ -263,6 +263,14 @@ export class OverworldScene extends Phaser.Scene {
         )
         .setDisplaySize(Math.max(portal.width, 28), Math.max(portal.height, 28))
         .setDepth(3);
+      this.tweens.add({
+        targets: portalSprite,
+        y: portalSprite.y - 8,
+        duration: 1300,
+        yoyo: true,
+        repeat: -1,
+        ease: "sine.inOut",
+      });
       this.add.text(portal.x + portal.width / 2, portal.y + portal.height / 2, portal.label, {
         color: "#fefae0",
         fontFamily: "Space Mono, monospace",
@@ -277,7 +285,7 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     location.scene.encounterZones.forEach((encounterZone) => {
-      this.add
+      const encounterMarker = this.add
         .image(
           encounterZone.x + encounterZone.width / 2,
           encounterZone.y + encounterZone.height / 2,
@@ -286,6 +294,14 @@ export class OverworldScene extends Phaser.Scene {
         .setDisplaySize(encounterZone.width, encounterZone.height)
         .setAlpha(0.22)
         .setDepth(2);
+      this.tweens.add({
+        targets: encounterMarker,
+        alpha: 0.34,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+        ease: "sine.inOut",
+      });
       this.encounterZones.push({
         zone: new Phaser.Geom.Rectangle(encounterZone.x, encounterZone.y, encounterZone.width, encounterZone.height),
         data: encounterZone,
@@ -297,6 +313,14 @@ export class OverworldScene extends Phaser.Scene {
         .sprite(npc.x, npc.y, location.scene.assets.npcTexturePath)
         .setDisplaySize(24, 24)
         .setDepth(6);
+      this.tweens.add({
+        targets: sprite,
+        y: sprite.y - 6,
+        duration: 1100,
+        yoyo: true,
+        repeat: -1,
+        ease: "sine.inOut",
+      });
       this.add.text(npc.x, npc.y - 22, npc.name, {
         color: "#111827",
         fontFamily: "IBM Plex Sans KR, Pretendard, sans-serif",
@@ -319,6 +343,9 @@ export class OverworldScene extends Phaser.Scene {
       .setDepth(20);
 
     this.cameras.main.setBounds(0, 0, location.scene.width, location.scene.height);
+    this.cameras.main.startFollow(this.playerSprite, true, 0.12, 0.12);
+    this.cameras.main.setDeadzone(220, 160);
+    this.cameras.main.roundPixels = true;
   }
 
   private renderSceneMap(scene: SceneDefinition): void {
