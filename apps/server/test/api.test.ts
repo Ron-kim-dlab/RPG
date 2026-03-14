@@ -1,6 +1,6 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import type { WorldContent } from "@rpg/game-core";
+import type { ApiResponse, BootstrapPayload, PlayerPayload, SessionPayload, WorldContent } from "@rpg/game-core";
 import { createStarterPlayer } from "@rpg/game-core";
 import { createAppContext } from "../src/app";
 import { MemoryUserRepository } from "../src/storage/memoryRepository";
@@ -46,15 +46,38 @@ describe("http api", () => {
       .send({ username: "hero", password: "secret123" })
       .expect(201);
 
-    const token = register.body.token as string;
+    const registerPayload = register.body as ApiResponse<SessionPayload>;
+    expect(registerPayload.success).toBe(true);
+    if (!registerPayload.success) {
+      throw new Error("register response should be successful");
+    }
+
+    const token = registerPayload.data.token;
     expect(token).toBeTruthy();
+
+    const bootstrap = await agent
+      .get("/content/bootstrap")
+      .expect(200);
+
+    const bootstrapPayload = bootstrap.body as ApiResponse<BootstrapPayload>;
+    expect(bootstrapPayload.success).toBe(true);
+    if (!bootstrapPayload.success) {
+      throw new Error("bootstrap response should be successful");
+    }
+    expect(bootstrapPayload.data.world.startLocationKey).toBe(world.startLocationKey);
 
     const me = await agent
       .get("/player/me")
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
 
-    expect(me.body.player.username).toBe("hero");
+    const mePayload = me.body as ApiResponse<PlayerPayload>;
+    expect(mePayload.success).toBe(true);
+    if (!mePayload.success) {
+      throw new Error("player/me response should be successful");
+    }
+
+    expect(mePayload.data.player.username).toBe("hero");
 
     const updated = {
       ...createStarterPlayer("hero", world),
@@ -67,7 +90,13 @@ describe("http api", () => {
       .send({ player: updated })
       .expect(200);
 
-    expect(saved.body.player.coins).toBe(123);
+    const savedPayload = saved.body as ApiResponse<PlayerPayload>;
+    expect(savedPayload.success).toBe(true);
+    if (!savedPayload.success) {
+      throw new Error("player/save response should be successful");
+    }
+
+    expect(savedPayload.data.player.coins).toBe(123);
   });
 
   it("hashes passwords on register and upgrades legacy passwords on login", async () => {
@@ -104,5 +133,52 @@ describe("http api", () => {
     const upgraded = await repository.findByUsername("legacy-hero");
     expect(upgraded?.passwordHash).toMatch(/^\$2[aby]\$/);
     expect(upgraded?.passwordHash).not.toBe("secret123");
+  });
+
+  it("returns consistent validation errors for malformed requests", async () => {
+    const repository = new MemoryUserRepository();
+    const world = createWorld();
+    const context = await createAppContext({
+      env: createEnv(),
+      repository,
+      worldLoader: async () => world,
+    });
+
+    const agent = request(context.app);
+
+    const invalidRegister = await agent
+      .post("/auth/register")
+      .send({ username: "a", password: "123" })
+      .expect(400);
+
+    expect(invalidRegister.body).toMatchObject({
+      success: false,
+      error: {
+        code: "validation_error",
+      },
+    });
+
+    const register = await agent
+      .post("/auth/register")
+      .send({ username: "hero", password: "secret123" })
+      .expect(201);
+
+    const registerPayload = register.body as ApiResponse<SessionPayload>;
+    if (!registerPayload.success) {
+      throw new Error("register response should be successful");
+    }
+
+    const malformedSave = await agent
+      .post("/player/save")
+      .set("Authorization", `Bearer ${registerPayload.data.token}`)
+      .send({ player: { username: "hero" } })
+      .expect(400);
+
+    expect(malformedSave.body).toMatchObject({
+      success: false,
+      error: {
+        code: "validation_error",
+      },
+    });
   });
 });

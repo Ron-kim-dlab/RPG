@@ -4,3 +4,4 @@ export * from "./engine/player";
 export * from "./engine/battle";
 export * from "./content/legacy";
 export * from "./validation";
+export * from "./contracts";

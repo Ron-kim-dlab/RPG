@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
-import type { PlayerSave, WorldContent } from "@rpg/game-core";
+import type { PlayerSave, SessionPayload, WorldContent } from "@rpg/game-core";
 import { createStarterPlayer, migrateLegacyPlayerSave } from "@rpg/game-core";
 import type { ServerEnv } from "../config/env";
 import type { UserRepository } from "../storage";
+import { createRouteError, sendFailure, sendSuccess } from "./response";
+import { readCredentials } from "./validation";
 
 type AuthPayload = {
   username: string;
@@ -43,23 +45,11 @@ export async function registerHandler(
   env: ServerEnv,
   worldLoader: () => Promise<WorldContent>,
 ): Promise<void> {
-  const username = String(req.body?.username ?? "").trim();
-  const password = String(req.body?.password ?? "");
-
-  if (username.length < 2) {
-    res.status(400).json({ success: false, message: "사용자 이름은 2자 이상이어야 합니다." });
-    return;
-  }
-
-  if (password.length < 8) {
-    res.status(400).json({ success: false, message: "비밀번호는 최소 8자 이상이어야 합니다." });
-    return;
-  }
+  const { username, password } = readCredentials(req.body);
 
   const existing = await repository.findByUsername(username);
   if (existing) {
-    res.status(409).json({ success: false, message: "이미 존재하는 사용자입니다." });
-    return;
+    throw createRouteError(409, "conflict", "이미 존재하는 사용자입니다.");
   }
 
   const world = await worldLoader();
@@ -71,11 +61,12 @@ export async function registerHandler(
     player,
   });
 
-  res.status(201).json({
-    success: true,
+  const payload: SessionPayload = {
     token: signToken(env, username),
     player,
-  });
+  };
+
+  sendSuccess(res, payload, 201);
 }
 
 export async function loginHandler(
@@ -85,13 +76,11 @@ export async function loginHandler(
   env: ServerEnv,
   worldLoader: () => Promise<WorldContent>,
 ): Promise<void> {
-  const username = String(req.body?.username ?? "").trim();
-  const password = String(req.body?.password ?? "");
+  const { username, password } = readCredentials(req.body);
 
   const account = await repository.findByUsername(username);
   if (!account) {
-    res.status(401).json({ success: false, message: "아이디 또는 비밀번호가 올바르지 않습니다." });
-    return;
+    throw createRouteError(401, "unauthorized", "아이디 또는 비밀번호가 올바르지 않습니다.");
   }
 
   let authenticated = false;
@@ -102,8 +91,7 @@ export async function loginHandler(
   }
 
   if (!authenticated) {
-    res.status(401).json({ success: false, message: "아이디 또는 비밀번호가 올바르지 않습니다." });
-    return;
+    throw createRouteError(401, "unauthorized", "아이디 또는 비밀번호가 올바르지 않습니다.");
   }
 
   const world = await worldLoader();
@@ -117,11 +105,12 @@ export async function loginHandler(
     player: migratedPlayer,
   });
 
-  res.json({
-    success: true,
+  const payload: SessionPayload = {
     token: signToken(env, username),
     player: migratedPlayer,
-  });
+  };
+
+  sendSuccess(res, payload);
 }
 
 export type AuthenticatedRequest = Request & {
@@ -133,7 +122,7 @@ export function authMiddleware(env: ServerEnv) {
     const header = req.headers.authorization;
     const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
     if (!token) {
-      res.status(401).json({ success: false, message: "인증 토큰이 필요합니다." });
+      sendFailure(res, 401, "unauthorized", "인증 토큰이 필요합니다.");
       return;
     }
 
@@ -141,7 +130,7 @@ export function authMiddleware(env: ServerEnv) {
       req.auth = verifyToken(env, token);
       next();
     } catch {
-      res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
+      sendFailure(res, 401, "unauthorized", "유효하지 않은 토큰입니다.");
     }
   };
 }

@@ -1,15 +1,18 @@
-import type { PlayerSave, WorldContent } from "@rpg/game-core";
+import type {
+  ApiResponse,
+  BootstrapPayload,
+  PlayerPayload,
+  PlayerSave,
+  SessionPayload,
+  WorldContent,
+} from "@rpg/game-core";
 
 export class ApiClient {
   constructor(private readonly baseUrl: string) {}
 
   async bootstrap(): Promise<WorldContent> {
-    const response = await fetch(`${this.baseUrl}/content/bootstrap`);
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.message ?? "콘텐츠를 불러오지 못했습니다.");
-    }
-    return payload.world as WorldContent;
+    const payload = await this.readResponse<BootstrapPayload>(`${this.baseUrl}/content/bootstrap`);
+    return payload.world;
   }
 
   async register(username: string, password: string): Promise<{ token: string; player: PlayerSave }> {
@@ -21,20 +24,16 @@ export class ApiClient {
   }
 
   async me(token: string): Promise<PlayerSave> {
-    const response = await fetch(`${this.baseUrl}/player/me`, {
+    const payload = await this.readResponse<PlayerPayload>(`${this.baseUrl}/player/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.message ?? "세션이 만료되었습니다.");
-    }
-    return payload.player as PlayerSave;
+    return payload.player;
   }
 
   async save(token: string, player: PlayerSave): Promise<PlayerSave> {
-    const response = await fetch(`${this.baseUrl}/player/save`, {
+    const payload = await this.readResponse<PlayerPayload>(`${this.baseUrl}/player/save`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -42,28 +41,32 @@ export class ApiClient {
       },
       body: JSON.stringify({ player }),
     });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.message ?? "세이브에 실패했습니다.");
-    }
-    return payload.player as PlayerSave;
+    return payload.player;
   }
 
   private async postAuth(path: string, body: Record<string, unknown>): Promise<{ token: string; player: PlayerSave }> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    const payload = await this.readResponse<SessionPayload>(`${this.baseUrl}${path}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
     });
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.message ?? "인증 요청에 실패했습니다.");
-    }
     return {
-      token: payload.token as string,
-      player: payload.player as PlayerSave,
+      token: payload.token,
+      player: payload.player,
     };
+  }
+
+  private async readResponse<T>(input: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(input, init);
+    const payload = await response.json() as ApiResponse<T>;
+
+    if (!response.ok || !payload.success) {
+      const message = payload.success ? "요청 처리에 실패했습니다." : payload.error.message;
+      throw new Error(message);
+    }
+
+    return payload.data;
   }
 }
