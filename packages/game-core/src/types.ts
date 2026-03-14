@@ -2,7 +2,7 @@ export type Facing = "up" | "down" | "left" | "right";
 
 export type NumericStat = "hp" | "mp" | "attack" | "defense" | "speed" | "accuracy";
 export type FormulaSource = "none" | "self_attack" | "target_attack";
-export type EffectTrigger = "on_use" | "on_turn_end" | "on_special";
+export type EffectTrigger = "on_use" | "on_turn_start" | "on_turn_end" | "on_hit";
 export type EffectTarget = "self" | "opponent";
 
 export type EffectFormula = {
