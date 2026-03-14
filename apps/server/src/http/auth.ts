@@ -10,6 +10,22 @@ type AuthPayload = {
   username: string;
 };
 
+function isBcryptHash(value: string): boolean {
+  return /^\$2[aby]\$\d{2}\$/.test(value);
+}
+
+function needsPasswordRehash(passwordHash: string, targetRounds: number): boolean {
+  if (!isBcryptHash(passwordHash)) {
+    return true;
+  }
+
+  try {
+    return bcrypt.getRounds(passwordHash) < targetRounds;
+  } catch {
+    return true;
+  }
+}
+
 export function signToken(env: ServerEnv, username: string): string {
   return jwt.sign({ username } satisfies AuthPayload, env.jwtSecret, {
     expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"],
@@ -47,7 +63,7 @@ export async function registerHandler(
   }
 
   const world = await worldLoader();
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, env.passwordHashRounds);
   const player = createStarterPlayer(username, world);
   await repository.saveAccount({
     username,
@@ -79,7 +95,7 @@ export async function loginHandler(
   }
 
   let authenticated = false;
-  if (account.passwordHash.startsWith("$2")) {
+  if (isBcryptHash(account.passwordHash)) {
     authenticated = await bcrypt.compare(password, account.passwordHash);
   } else {
     authenticated = account.passwordHash === password;
@@ -92,7 +108,9 @@ export async function loginHandler(
 
   const world = await worldLoader();
   const migratedPlayer = migrateLegacyPlayerSave(account.player as Record<string, unknown> | null, username, world);
-  const upgradedPassword = account.passwordHash.startsWith("$2") ? account.passwordHash : await bcrypt.hash(password, 10);
+  const upgradedPassword = needsPasswordRehash(account.passwordHash, env.passwordHashRounds)
+    ? await bcrypt.hash(password, env.passwordHashRounds)
+    : account.passwordHash;
   await repository.saveAccount({
     username,
     passwordHash: upgradedPassword,

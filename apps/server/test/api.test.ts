@@ -17,17 +17,24 @@ function createWorld(): WorldContent {
   };
 }
 
+function createEnv() {
+  return {
+    runtimeMode: "test" as const,
+    port: 4100,
+    clientOrigin: "http://localhost:5173",
+    jwtSecret: "0123456789abcdef0123456789abcdef",
+    jwtExpiresIn: "7d",
+    passwordHashRounds: 10,
+    storageDriver: "memory" as const,
+  };
+}
+
 describe("http api", () => {
   it("registers, authenticates, and saves a player", async () => {
     const repository = new MemoryUserRepository();
     const world = createWorld();
     const context = await createAppContext({
-      env: {
-        port: 4100,
-        clientOrigin: "http://localhost:5173",
-        jwtSecret: "test-secret",
-        jwtExpiresIn: "7d",
-      },
+      env: createEnv(),
       repository,
       worldLoader: async () => world,
     });
@@ -61,5 +68,41 @@ describe("http api", () => {
       .expect(200);
 
     expect(saved.body.player.coins).toBe(123);
+  });
+
+  it("hashes passwords on register and upgrades legacy passwords on login", async () => {
+    const repository = new MemoryUserRepository();
+    const world = createWorld();
+    const context = await createAppContext({
+      env: createEnv(),
+      repository,
+      worldLoader: async () => world,
+    });
+
+    const agent = request(context.app);
+
+    await agent
+      .post("/auth/register")
+      .send({ username: "new-hero", password: "secret123" })
+      .expect(201);
+
+    const created = await repository.findByUsername("new-hero");
+    expect(created?.passwordHash).toMatch(/^\$2[aby]\$/);
+    expect(created?.passwordHash).not.toBe("secret123");
+
+    await repository.saveAccount({
+      username: "legacy-hero",
+      passwordHash: "secret123",
+      player: createStarterPlayer("legacy-hero", world),
+    });
+
+    await agent
+      .post("/auth/login")
+      .send({ username: "legacy-hero", password: "secret123" })
+      .expect(200);
+
+    const upgraded = await repository.findByUsername("legacy-hero");
+    expect(upgraded?.passwordHash).toMatch(/^\$2[aby]\$/);
+    expect(upgraded?.passwordHash).not.toBe("secret123");
   });
 });
