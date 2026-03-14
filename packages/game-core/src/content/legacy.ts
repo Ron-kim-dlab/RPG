@@ -13,6 +13,26 @@ import type {
   WorldContent,
 } from "../types";
 import { toLocationKey, toStableId } from "../utils/id";
+import { assertValidWorldContent } from "../validation";
+
+const LEGACY_LOCATION_ALIASES: Record<string, string> = {
+  [toLocationKey("산길", "불꽃 산길")]: toLocationKey("산길", "얼음 산길"),
+};
+
+const LEGACY_BOSS_TEMPLATE_ALIASES: Record<string, string> = {
+  "진흙 거인": "물먹는 하마",
+  "하늘의 눈동자": "악마 독수리",
+  "화성의 화염 수호자": "화성의 불 수호자",
+};
+
+function resolveLegacyLocationKey(mainLocation: string, subLocation: string): string {
+  const rawKey = toLocationKey(mainLocation, subLocation);
+  return LEGACY_LOCATION_ALIASES[rawKey] ?? rawKey;
+}
+
+function resolveBossTemplateName(name: string): string {
+  return LEGACY_BOSS_TEMPLATE_ALIASES[name] ?? name;
+}
 
 function parseFunctionBody(code: string): string {
   const trimmed = code.trim();
@@ -352,6 +372,45 @@ export function buildWorldContentFromLegacy(input: {
   bosses: LegacyBossData;
   tactics: LegacyTacticData;
 }): WorldContent {
+  const ensureBossRecord = (
+    referenceName: string,
+    boss: LegacyBossData[string],
+    enemyRecords: WorldContent["enemies"],
+  ): string => {
+    const id = toStableId("boss", referenceName);
+    if (enemyRecords[id]) {
+      return id;
+    }
+
+    enemyRecords[id] = {
+      id,
+      name: referenceName,
+      maxHp: boss.체력,
+      attack: boss.공격력,
+      defense: boss.방어력,
+      speed: boss.속도,
+      accuracy: boss.명중률,
+      mana: boss.MP,
+      experienceReward: boss.경험치 * 5,
+      coinReward: boss.경험치 * 15,
+      specialChance: 0.3,
+      isBoss: true,
+      specialAbility: boss.특수능력
+        ? {
+            id: toStableId("boss-skill", `${referenceName}-${boss.특수능력.이름}`),
+            name: boss.특수능력.이름,
+            description: boss.특수능력.이름,
+            cost: 0,
+            manaCost: boss.특수능력.MP소모,
+            accuracy: 1,
+            effects: parseLegacyAbility(boss.특수능력.능력, "on_use"),
+          }
+        : undefined,
+    };
+
+    return id;
+  };
+
   const skills: SkillDefinition[] = input.skills.map((skill) => ({
     id: toStableId("skill", skill.이름),
     name: skill.이름,
@@ -402,7 +461,7 @@ export function buildWorldContentFromLegacy(input: {
 
   Object.entries(input.monsters).forEach(([mainLocation, subLocations]) => {
     Object.entries(subLocations).forEach(([subLocation, enemies]) => {
-      const locationKey = toLocationKey(mainLocation, subLocation);
+      const locationKey = resolveLegacyLocationKey(mainLocation, subLocation);
       enemiesByLocation[locationKey] = enemies.map((enemy) => {
         const id = toStableId("enemy", `${mainLocation}-${subLocation}-${enemy.이름}`);
         enemyRecords[id] = {
@@ -435,32 +494,7 @@ export function buildWorldContentFromLegacy(input: {
   });
 
   Object.entries(input.bosses).forEach(([name, boss]) => {
-    const id = toStableId("boss", name);
-    enemyRecords[id] = {
-      id,
-      name,
-      maxHp: boss.체력,
-      attack: boss.공격력,
-      defense: boss.방어력,
-      speed: boss.속도,
-      accuracy: boss.명중률,
-      mana: boss.MP,
-      experienceReward: boss.경험치 * 5,
-      coinReward: boss.경험치 * 15,
-      specialChance: 0.3,
-      isBoss: true,
-      specialAbility: boss.특수능력
-        ? {
-            id: toStableId("boss-skill", `${name}-${boss.특수능력.이름}`),
-            name: boss.특수능력.이름,
-            description: boss.특수능력.이름,
-            cost: 0,
-            manaCost: boss.특수능력.MP소모,
-            accuracy: 1,
-            effects: parseLegacyAbility(boss.특수능력.능력, "on_use"),
-          }
-        : undefined,
-    };
+    ensureBossRecord(name, boss, enemyRecords);
   });
 
   const locations: Record<string, LocationNode> = {};
@@ -485,7 +519,11 @@ export function buildWorldContentFromLegacy(input: {
       });
 
       const enemyIds = location.보스
-        ? [toStableId("boss", location.보스)]
+        ? (() => {
+            const templateName = resolveBossTemplateName(location.보스);
+            const boss = input.bosses[templateName];
+            return boss ? [ensureBossRecord(location.보스, boss, enemyRecords)] : [toStableId("boss", location.보스)];
+          })()
         : enemiesByLocation[key] ?? [];
 
       locations[key] = {
@@ -509,7 +547,7 @@ export function buildWorldContentFromLegacy(input: {
     });
   });
 
-  return {
+  return assertValidWorldContent({
     startLocationKey: toLocationKey("시작의 마을", "마을 입구"),
     locations,
     equipment,
@@ -517,5 +555,5 @@ export function buildWorldContentFromLegacy(input: {
     tactics,
     enemies: enemyRecords,
     enemiesByLocation,
-  };
+  });
 }

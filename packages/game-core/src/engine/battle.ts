@@ -135,6 +135,25 @@ function applyTriggeredEffects(
     .forEach((effect) => applyEffect(effect, self, target, log));
 }
 
+function getEquippedItems(
+  player: PlayerSave,
+  equipment: Record<string, EquipmentDefinition>,
+): EquipmentDefinition[] {
+  return player.equippedEquipmentIds
+    .map((equipmentId) => equipment[equipmentId])
+    .filter((entry): entry is EquipmentDefinition => Boolean(entry));
+}
+
+function applyEquipmentTriggeredEffects(
+  equippedItems: EquipmentDefinition[],
+  trigger: EffectDefinition["trigger"],
+  self: CombatantRuntime,
+  target: CombatantRuntime,
+  log: string[],
+): void {
+  equippedItems.forEach((equipment) => applyTriggeredEffects(equipment.effects, trigger, self, target, log));
+}
+
 function finalizePlayerSnapshot(player: PlayerSave, runtime: CombatantRuntime): PlayerSave {
   return {
     ...player,
@@ -216,10 +235,13 @@ export function performBattleAction(params: {
 
   const playerRuntime = state.player;
   const enemyRuntime = state.enemy;
+  const equippedItems = getEquippedItems(player, params.equipment);
 
   if (state.finished) {
     return { player, state, logs, requiresFollowUpAction: false };
   }
+
+  applyEquipmentTriggeredEffects(equippedItems, "on_turn_start", playerRuntime, enemyRuntime, logs);
 
   if (params.action.kind === "skill") {
     const skill = params.skills[params.action.skillId];
@@ -231,6 +253,13 @@ export function performBattleAction(params: {
     }
     if (playerRuntime.currentMp < skill.manaCost) {
       logs.push("MP가 부족합니다.");
+      player = finalizePlayerSnapshot(player, playerRuntime);
+      state.player = toRuntimePlayer(player);
+      state.enemy = {
+        ...enemyRuntime,
+        currentHp: clamp(enemyRuntime.currentHp, 0, enemyRuntime.maxHp),
+        currentMp: clamp(enemyRuntime.currentMp, 0, enemyRuntime.maxMp),
+      };
       state.log = logs;
       return { player, state, logs, requiresFollowUpAction: true };
     }
@@ -239,12 +268,28 @@ export function performBattleAction(params: {
     if (rng() > skill.accuracy) {
       logs.push(`${skill.name} 사용 실패.`);
       player = finalizePlayerSnapshot(player, playerRuntime);
+      state.player = toRuntimePlayer(player);
+      state.enemy = {
+        ...enemyRuntime,
+        currentHp: clamp(enemyRuntime.currentHp, 0, enemyRuntime.maxHp),
+        currentMp: clamp(enemyRuntime.currentMp, 0, enemyRuntime.maxMp),
+      };
       state.log = logs;
       return { player, state, logs, requiresFollowUpAction: true };
     }
 
+    const enemyHpBeforeSkill = enemyRuntime.currentHp;
     applyTriggeredEffects(skill.effects, "on_use", playerRuntime, enemyRuntime, logs);
+    if (enemyRuntime.currentHp < enemyHpBeforeSkill) {
+      applyEquipmentTriggeredEffects(equippedItems, "on_hit", playerRuntime, enemyRuntime, logs);
+    }
     player = finalizePlayerSnapshot(player, playerRuntime);
+    state.player = toRuntimePlayer(player);
+    state.enemy = {
+      ...enemyRuntime,
+      currentHp: clamp(enemyRuntime.currentHp, 0, enemyRuntime.maxHp),
+      currentMp: clamp(enemyRuntime.currentMp, 0, enemyRuntime.maxMp),
+    };
     state.log = logs;
     return { player, state, logs, requiresFollowUpAction: true };
   }
@@ -252,6 +297,7 @@ export function performBattleAction(params: {
   let attackMultiplier = 1;
   let defendMultiplier = 1;
   let skipPlayerAttack = false;
+  const enemyHpBeforePlayerAction = enemyRuntime.currentHp;
 
   if (params.action.kind === "attack") {
     attackMultiplier = 1.5;
@@ -309,6 +355,10 @@ export function performBattleAction(params: {
     logs.push(`플레이어 ${params.action.kind}: ${damage} 피해.`);
   }
 
+  if (enemyRuntime.currentHp < enemyHpBeforePlayerAction) {
+    applyEquipmentTriggeredEffects(equippedItems, "on_hit", playerRuntime, enemyRuntime, logs);
+  }
+
   if (enemyRuntime.currentHp <= 0) {
     state.finished = true;
     state.outcome = "player_win";
@@ -336,10 +386,7 @@ export function performBattleAction(params: {
   }
 
   if (enemyRuntime.currentHp > 0 && playerRuntime.currentHp > 0) {
-    player.equippedEquipmentIds
-      .map((equipmentId) => params.equipment[equipmentId])
-      .filter((equipment): equipment is EquipmentDefinition => Boolean(equipment))
-      .forEach((equipment) => applyTriggeredEffects(equipment.effects, "on_turn_end", playerRuntime, enemyRuntime, logs));
+    applyEquipmentTriggeredEffects(equippedItems, "on_turn_end", playerRuntime, enemyRuntime, logs);
   }
 
   if (playerRuntime.currentHp <= 0 && enemyRuntime.currentHp <= 0) {
