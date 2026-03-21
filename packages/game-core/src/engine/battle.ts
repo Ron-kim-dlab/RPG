@@ -10,8 +10,9 @@ import type {
   PlayerSave,
   SkillDefinition,
   TacticDefinition,
+  WorldContent,
 } from "../types";
-import { applyLevelUps, getMaxHp, getMaxMp } from "./player";
+import { applyLevelUps, getMaxHp, getMaxMp, resolveLocationSpawn } from "./player";
 import { clamp, pickRandom, toStableId } from "../utils/id";
 
 function toRuntimePlayer(player: PlayerSave): CombatantRuntime {
@@ -221,6 +222,7 @@ export function performBattleAction(params: {
   tactics: Record<string, TacticDefinition>;
   equipment: Record<string, EquipmentDefinition>;
   enemies: Record<string, EnemyDefinition>;
+  world?: WorldContent;
   rng?: () => number;
 }): BattleResolution {
   const rng = params.rng ?? Math.random;
@@ -403,13 +405,14 @@ export function performBattleAction(params: {
   player = finalizePlayerSnapshot(player, playerRuntime);
 
   if (state.finished && state.outcome === "enemy_win") {
+    const reviveLocationKey = "시작의 마을::여관";
     player = {
       ...player,
       coins: 0,
       currentHp: getMaxHp(player.level),
       currentMp: getMaxMp(player.level),
-      locationKey: "시작의 마을::여관",
-      position: { x: 512, y: 384 },
+      locationKey: reviveLocationKey,
+      position: params.world ? resolveLocationSpawn(params.world, reviveLocationKey) : { x: 512, y: 384 },
     };
     logs.push("패배했습니다. 시작의 마을 여관에서 부활합니다.");
   }

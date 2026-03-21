@@ -429,6 +429,7 @@ export class AppController {
       tactics: this.tacticMap,
       equipment: this.equipmentMap,
       enemies: this.world.enemies,
+      world: this.world,
     });
 
     const previousPlayer = state.player;
