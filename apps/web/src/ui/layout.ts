@@ -3,12 +3,19 @@ export const FLOATING_LAYOUT_BREAKPOINT = 920;
 
 export type FloatingPanelKey = "hud" | "log" | "chat" | "action" | "dialogue" | "battle";
 
+export type FloatingPanelCollapsedState = Partial<Record<FloatingPanelKey, boolean>>;
+
 export type FloatingPanelLayout = {
   x: number;
   y: number;
   width: number;
   height: number;
   z: number;
+};
+
+export type FloatingPanelPreferences = {
+  layouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>>;
+  collapsed: FloatingPanelCollapsedState;
 };
 
 export type FloatingPanelConstraint = {
@@ -33,6 +40,21 @@ export function isFloatingLayoutEnabled(viewportWidth: number): boolean {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function sanitizeCollapsedPanels(value: unknown): FloatingPanelCollapsedState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const record = value as Record<string, unknown>;
+  const output: FloatingPanelCollapsedState = {};
+  PANEL_KEYS.forEach((key) => {
+    if (typeof record[key] === "boolean") {
+      output[key] = record[key];
+    }
+  });
+  return output;
 }
 
 export function sanitizeStoredLayouts(value: unknown): Partial<Record<FloatingPanelKey, FloatingPanelLayout>> {
@@ -72,12 +94,33 @@ export function sanitizeStoredLayouts(value: unknown): Partial<Record<FloatingPa
   return output;
 }
 
+export function sanitizeStoredPanelPreferences(value: unknown): FloatingPanelPreferences {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if ("layouts" in record || "collapsed" in record) {
+      return {
+        layouts: sanitizeStoredLayouts(record.layouts),
+        collapsed: sanitizeCollapsedPanels(record.collapsed),
+      };
+    }
+  }
+
+  return {
+    layouts: sanitizeStoredLayouts(value),
+    collapsed: {},
+  };
+}
+
 export function cloneFloatingLayouts(
   layouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>>,
 ): Partial<Record<FloatingPanelKey, FloatingPanelLayout>> {
   return Object.fromEntries(
     Object.entries(layouts).map(([key, layout]) => [key, layout ? { ...layout } : layout]),
   ) as Partial<Record<FloatingPanelKey, FloatingPanelLayout>>;
+}
+
+export function cloneCollapsedPanels(collapsed: FloatingPanelCollapsedState): FloatingPanelCollapsedState {
+  return { ...collapsed };
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   clampFloatingPanelLayout,
+  cloneCollapsedPanels,
   cloneFloatingLayouts,
   isFloatingLayoutEnabled,
+  sanitizeStoredPanelPreferences,
   sanitizeStoredLayouts,
 } from "../src/ui/layout";
 
@@ -36,6 +38,31 @@ describe("floating panel layout helpers", () => {
     });
     expect("broken" in layouts).toBe(false);
     expect(layouts.battle).toBeUndefined();
+  });
+
+  it("reads saved collapsed panel state from the newer preference payload", () => {
+    const preferences = sanitizeStoredPanelPreferences({
+      layouts: {
+        chat: {
+          x: 24,
+          y: 36,
+          width: 320,
+          height: 260,
+          z: 4,
+        },
+      },
+      collapsed: {
+        chat: true,
+        battle: false,
+        nope: "bad",
+      },
+    });
+
+    expect(preferences.layouts.chat?.width).toBe(320);
+    expect(preferences.collapsed).toEqual({
+      chat: true,
+      battle: false,
+    });
   });
 
   it("clamps panel bounds to the visible container and minimum sizes", () => {
@@ -73,5 +100,16 @@ describe("floating panel layout helpers", () => {
     const cloned = cloneFloatingLayouts(original);
     expect(cloned).toEqual(original);
     expect(cloned.hud).not.toBe(original.hud);
+  });
+
+  it("clones collapsed panel state without sharing object references", () => {
+    const original = {
+      chat: true,
+      log: false,
+    };
+
+    const cloned = cloneCollapsedPanels(original);
+    expect(cloned).toEqual(original);
+    expect(cloned).not.toBe(original);
   });
 });

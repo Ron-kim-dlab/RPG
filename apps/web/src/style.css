@@ -122,6 +122,63 @@ button {
   backdrop-filter: blur(16px);
 }
 
+.panel-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.panel-shell-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.panel-shell-copy {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.panel-shell-heading h1,
+.panel-shell-heading h2 {
+  margin: 0;
+}
+
+.panel-shell-heading h1 {
+  font-size: clamp(1.25rem, 2.2vw, 1.8rem);
+}
+
+.panel-shell-subtitle {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.panel-shell-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.panel-shell-body {
+  min-width: 0;
+}
+
+.panel.is-collapsed .panel-shell {
+  gap: 0;
+}
+
+.panel.is-collapsed .panel-shell-body {
+  display: none;
+}
+
+.panel-toggle-button {
+  white-space: nowrap;
+}
+
 .layout-panel {
   position: absolute;
 }
@@ -216,18 +273,12 @@ button {
   gap: 14px;
 }
 
-.hud-brand h1,
 .auth-card h2,
 .dock-header h2,
 .panel-header h2,
 .panel-header h3 {
   margin: 0;
 }
-
-.hud-brand h1 {
-  font-size: clamp(1.25rem, 2.2vw, 1.8rem);
-}
-
 .hud-brand p,
 .panel-note {
   margin: 6px 0 0;
@@ -626,6 +677,13 @@ button {
   .layout-panel.floating-enabled textarea {
     cursor: text;
   }
+
+  .layout-panel.floating-enabled.is-collapsed {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden;
+    resize: none;
+  }
 }
 
 @media (max-width: 1180px) {
@@ -701,6 +759,7 @@ button {
 }
 
 @media (max-width: 640px) {
+  .panel-shell-header,
   .hud-row,
   .dock-header,
   .panel-header,
@@ -709,6 +768,10 @@ button {
   .context-card {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .panel-shell-controls {
+    justify-content: start;
   }
 
   .battle-actions,

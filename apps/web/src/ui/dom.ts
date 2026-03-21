@@ -11,10 +11,12 @@ import type { AppState } from "../state/store";
 import {
   clampFloatingPanelLayout,
   cloneFloatingLayouts,
+  cloneCollapsedPanels,
   FLOATING_LAYOUT_STORAGE_KEY,
   FLOATING_PANEL_CONSTRAINTS,
   isFloatingLayoutEnabled,
-  sanitizeStoredLayouts,
+  sanitizeStoredPanelPreferences,
+  type FloatingPanelCollapsedState,
   type FloatingPanelKey,
   type FloatingPanelLayout,
 } from "./layout";
@@ -60,6 +62,8 @@ export class DomUi {
   private readonly floatingPanels: Record<FloatingPanelKey, HTMLElement>;
   private panelLayouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>> = {};
   private savedPanelLayouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>> = {};
+  private collapsedPanels: FloatingPanelCollapsedState = {};
+  private savedCollapsedPanels: FloatingPanelCollapsedState = {};
   private nextPanelZ = 20;
   private activeGesture: LayoutGesture | null = null;
   private readonly handlePointerMove = (event: PointerEvent) => this.onPointerMove(event);
@@ -107,8 +111,11 @@ export class DomUi {
       battle: this.battlePanel,
     };
 
-    this.savedPanelLayouts = this.loadStoredLayouts();
-    this.panelLayouts = cloneFloatingLayouts(this.savedPanelLayouts);
+    const storedPreferences = this.loadStoredPreferences();
+    this.savedPanelLayouts = storedPreferences.layouts;
+    this.panelLayouts = cloneFloatingLayouts(storedPreferences.layouts);
+    this.savedCollapsedPanels = storedPreferences.collapsed;
+    this.collapsedPanels = cloneCollapsedPanels(storedPreferences.collapsed);
     this.nextPanelZ = this.computeNextPanelZ();
     this.initializeFloatingPanels();
   }
@@ -135,28 +142,43 @@ export class DomUi {
     window.requestAnimationFrame(() => this.refreshFloatingLayouts());
   }
 
-  private loadStoredLayouts(): Partial<Record<FloatingPanelKey, FloatingPanelLayout>> {
+  private loadStoredPreferences(): {
+    layouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>>;
+    collapsed: FloatingPanelCollapsedState;
+  } {
     if (typeof window === "undefined") {
-      return {};
+      return {
+        layouts: {},
+        collapsed: {},
+      };
     }
 
     try {
       const raw = window.localStorage.getItem(FLOATING_LAYOUT_STORAGE_KEY);
       if (!raw) {
-        return {};
+        return {
+          layouts: {},
+          collapsed: {},
+        };
       }
-      return sanitizeStoredLayouts(JSON.parse(raw));
+      return sanitizeStoredPanelPreferences(JSON.parse(raw));
     } catch {
-      return {};
+      return {
+        layouts: {},
+        collapsed: {},
+      };
     }
   }
 
-  private persistLayouts(): void {
+  private persistPreferences(): void {
     if (typeof window === "undefined") {
       return;
     }
 
-    window.localStorage.setItem(FLOATING_LAYOUT_STORAGE_KEY, JSON.stringify(this.savedPanelLayouts));
+    window.localStorage.setItem(FLOATING_LAYOUT_STORAGE_KEY, JSON.stringify({
+      layouts: this.savedPanelLayouts,
+      collapsed: this.savedCollapsedPanels,
+    }));
   }
 
   private computeNextPanelZ(): number {
@@ -214,7 +236,10 @@ export class DomUi {
         return;
       }
 
-      const clamped = this.clampLayout(key, measured);
+      const clamped = this.clampLayout(key, {
+        ...measured,
+        height: this.collapsedPanels[key] ? (this.panelLayouts[key]?.height ?? measured.height) : measured.height,
+      });
       this.panelLayouts[key] = clamped;
       this.applyLayout(key, clamped);
     });
@@ -411,29 +436,117 @@ export class DomUi {
     this.snapshotVisibleLayouts();
     const nextLayouts = cloneFloatingLayouts(this.panelLayouts);
     this.savedPanelLayouts = nextLayouts;
-    this.persistLayouts();
+    this.savedCollapsedPanels = cloneCollapsedPanels(this.collapsedPanels);
+    this.persistPreferences();
   }
 
   private loadFloatingLayouts(): void {
-    const stored = this.loadStoredLayouts();
-    this.savedPanelLayouts = stored;
-    this.panelLayouts = cloneFloatingLayouts(stored);
+    const stored = this.loadStoredPreferences();
+    this.savedPanelLayouts = stored.layouts;
+    this.panelLayouts = cloneFloatingLayouts(stored.layouts);
+    this.savedCollapsedPanels = cloneCollapsedPanels(stored.collapsed);
+    this.collapsedPanels = cloneCollapsedPanels(stored.collapsed);
     this.nextPanelZ = this.computeNextPanelZ();
     if (Object.keys(this.panelLayouts).length === 0) {
       this.restoreDefaultFloatingLayouts();
     }
     this.refreshFloatingLayouts();
+    this.syncCollapsedPanels();
   }
 
   private resetFloatingLayouts(): void {
     this.panelLayouts = {};
     this.savedPanelLayouts = {};
+    this.collapsedPanels = {};
+    this.savedCollapsedPanels = {};
     this.nextPanelZ = 20;
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(FLOATING_LAYOUT_STORAGE_KEY);
     }
     this.restoreDefaultFloatingLayouts();
     this.refreshFloatingLayouts();
+    this.syncCollapsedPanels();
+  }
+
+  private isPanelCollapsed(key: FloatingPanelKey): boolean {
+    return Boolean(this.collapsedPanels[key]);
+  }
+
+  private togglePanelCollapsed(key: FloatingPanelKey): void {
+    this.collapsedPanels[key] = !this.isPanelCollapsed(key);
+    this.syncCollapsedPanel(key);
+  }
+
+  private syncCollapsedPanels(): void {
+    (Object.keys(this.floatingPanels) as FloatingPanelKey[]).forEach((key) => {
+      this.syncCollapsedPanel(key);
+    });
+  }
+
+  private syncCollapsedPanel(key: FloatingPanelKey): void {
+    const panel = this.floatingPanels[key];
+    const collapsed = this.isPanelCollapsed(key);
+    panel.classList.toggle("is-collapsed", collapsed);
+
+    const toggleButton = panel.querySelector<HTMLButtonElement>("[data-panel-toggle]");
+    if (toggleButton) {
+      const title = toggleButton.dataset.panelTitle ?? "패널";
+      toggleButton.textContent = collapsed ? "펼치기" : "접기";
+      toggleButton.setAttribute("aria-expanded", String(!collapsed));
+      toggleButton.setAttribute("aria-label", collapsed ? `${title} 패널 펼치기` : `${title} 패널 접기`);
+    }
+  }
+
+  private bindPanelToggle(key: FloatingPanelKey): void {
+    const panel = this.floatingPanels[key];
+    const toggleButton = panel.querySelector<HTMLButtonElement>("[data-panel-toggle]");
+    if (!toggleButton) {
+      return;
+    }
+
+    toggleButton.onclick = () => this.togglePanelCollapsed(key);
+    this.syncCollapsedPanel(key);
+  }
+
+  private renderPanelFrame(options: {
+    key: FloatingPanelKey;
+    eyebrow: string;
+    title: string;
+    titleTag?: "h1" | "h2";
+    subtitle?: string;
+    controls?: string;
+    body: string;
+    bodyClassName?: string;
+  }): string {
+    const headingTag = options.titleTag ?? "h2";
+
+    return `
+      <div class="panel-shell">
+        <div class="panel-shell-header">
+          <div class="panel-shell-copy">
+            <div class="eyebrow">${options.eyebrow}</div>
+            <div class="panel-shell-heading">
+              <${headingTag}>${options.title}</${headingTag}>
+              ${options.subtitle ? `<p class="panel-shell-subtitle">${options.subtitle}</p>` : ""}
+            </div>
+          </div>
+          <div class="panel-shell-controls" data-no-panel-drag>
+            ${options.controls ?? ""}
+            <button
+              class="ghost panel-toggle-button"
+              type="button"
+              data-panel-toggle
+              data-panel-title="${options.title}"
+            >
+              ${this.isPanelCollapsed(options.key) ? "펼치기" : "접기"}
+            </button>
+          </div>
+        </div>
+        <div class="panel-shell-body ${options.bodyClassName ?? ""}">
+          ${options.body}
+        </div>
+      </div>
+    `;
   }
 
   render(
@@ -517,25 +630,17 @@ export class DomUi {
     const locationTitle = currentLocation ? `${currentLocation.mainLocation} · ${currentLocation.subLocation}` : "월드 로딩 중";
     const overlayMode = state.battle ? "battle" : state.dialogue ? "dialogue" : "explore";
     const prompt = state.fieldPrompt;
-
-    this.hudPanel.innerHTML = `
-      <div class="hud-row">
-        <div class="hud-brand">
-          <div class="eyebrow">OVERWORLD MVP</div>
-          <h1>${locationTitle}</h1>
-          <p>${state.player ? "WASD 이동 · Space 상호작용/이야기 · Enter 전환 · B 교전" : "접속 후 오버월드 탐험이 활성화됩니다."}</p>
-        </div>
-        <div class="hud-meta">
-          <span class="status-pill ${state.connectionStatus}">${state.connectionStatus}</span>
-          <span class="status-pill mode-pill mode-${overlayMode}">${overlayMode}</span>
-          <div class="layout-actions" data-no-panel-drag>
-            <button class="ghost" data-layout-save ${state.player ? "" : "disabled"}>UI 저장</button>
-            <button class="ghost" data-layout-load ${state.player ? "" : "disabled"}>UI 불러오기</button>
-            <button class="ghost" data-reset-layout ${state.player ? "" : "disabled"}>UI 초기화</button>
-          </div>
-          <button class="ghost" data-save ${state.player ? "" : "disabled"}>게임 저장</button>
-        </div>
+    const controls = `
+      <span class="status-pill ${state.connectionStatus}">${state.connectionStatus}</span>
+      <span class="status-pill mode-pill mode-${overlayMode}">${overlayMode}</span>
+      <div class="layout-actions">
+        <button class="ghost" data-layout-save ${state.player ? "" : "disabled"}>UI 저장</button>
+        <button class="ghost" data-layout-load ${state.player ? "" : "disabled"}>UI 불러오기</button>
+        <button class="ghost" data-reset-layout ${state.player ? "" : "disabled"}>UI 초기화</button>
       </div>
+      <button class="ghost" data-save ${state.player ? "" : "disabled"}>게임 저장</button>
+    `;
+    const body = `
       <div class="meter-grid">
         ${state.player ? this.renderPlayerMeters(state.player, nearbyPlayers.length) : this.renderLoadingMeters(state)}
       </div>
@@ -551,6 +656,16 @@ export class DomUi {
         </div>
       ` : ""}
     `;
+
+    this.hudPanel.innerHTML = this.renderPanelFrame({
+      key: "hud",
+      eyebrow: "OVERWORLD MVP",
+      title: locationTitle,
+      titleTag: "h1",
+      subtitle: state.player ? "WASD 이동 · Space 상호작용/이야기 · Enter 전환 · B 교전" : "접속 후 오버월드 탐험이 활성화됩니다.",
+      controls,
+      body,
+    });
 
     const saveButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-save]");
     if (saveButton) {
@@ -568,6 +683,7 @@ export class DomUi {
     if (resetLayoutButton) {
       resetLayoutButton.onclick = () => this.resetFloatingLayouts();
     }
+    this.bindPanelToggle("hud");
   }
 
   private renderActions(
@@ -614,32 +730,33 @@ export class DomUi {
 
     const hasContextActions = restingVisible || equipmentButtons || skillButtons;
     this.actionPanel.classList.add("visible");
-    this.actionPanel.innerHTML = `
-      <div class="dock-header">
-        <div>
-          <div class="eyebrow">FIELD ACTIONS</div>
-          <h2>${currentLocation.subLocation}</h2>
-        </div>
+    this.actionPanel.innerHTML = this.renderPanelFrame({
+      key: "action",
+      eyebrow: "FIELD ACTIONS",
+      title: currentLocation.subLocation,
+      controls: `
         <div class="dock-summary">
           <span class="pill">${currentLocation.mainLocation}</span>
           ${equippedPills}
         </div>
-      </div>
-      <div class="dock-grid">
-        ${restingVisible ? `<button class="dock-card accent" data-rest><strong>숙박</strong><span>20 코인으로 HP/MP 회복</span></button>` : ""}
-        ${equipmentButtons}
-        ${skillButtons}
-        ${!hasContextActions ? `<div class="dock-card static"><strong>탐험 구간</strong><span>출구 진입 후 Enter 로 씬 전환, NPC 근처에서 Space 로 대화</span></div>` : ""}
-        ${battle ? `<div class="dock-card static danger"><strong>전투 진행 중</strong><span>오른쪽 전투 오버레이에서 행동을 선택하세요.</span></div>` : ""}
-        ${battleReport ? `
-          <div class="dock-card static ${battleReport.outcome === "enemy_win" ? "danger" : "accent"} report-card">
-            <strong>${battleReport.title}</strong>
-            <span>${battleReport.summary}</span>
-            <span>최근 전투 로그 ${battleReport.lines.length}개가 오른쪽 패널에 반영되었습니다.</span>
-          </div>
-        ` : ""}
-      </div>
-    `;
+      `,
+      body: `
+        <div class="dock-grid">
+          ${restingVisible ? `<button class="dock-card accent" data-rest><strong>숙박</strong><span>20 코인으로 HP/MP 회복</span></button>` : ""}
+          ${equipmentButtons}
+          ${skillButtons}
+          ${!hasContextActions ? `<div class="dock-card static"><strong>탐험 구간</strong><span>출구 진입 후 Enter 로 씬 전환, NPC 근처에서 Space 로 대화</span></div>` : ""}
+          ${battle ? `<div class="dock-card static danger"><strong>전투 진행 중</strong><span>오른쪽 전투 오버레이에서 행동을 선택하세요.</span></div>` : ""}
+          ${battleReport ? `
+            <div class="dock-card static ${battleReport.outcome === "enemy_win" ? "danger" : "accent"} report-card">
+              <strong>${battleReport.title}</strong>
+              <span>${battleReport.summary}</span>
+              <span>최근 전투 로그 ${battleReport.lines.length}개가 오른쪽 패널에 반영되었습니다.</span>
+            </div>
+          ` : ""}
+        </div>
+      `,
+    });
 
     this.actionPanel.querySelectorAll<HTMLButtonElement>("[data-equipment]").forEach((button) => {
       const equipmentId = button.dataset.equipment!;
@@ -654,6 +771,7 @@ export class DomUi {
     if (restButton) {
       restButton.onclick = () => this.callbacks.onRest();
     }
+    this.bindPanelToggle("action");
   }
 
   private renderDialogue(state: AppState): void {
@@ -665,19 +783,21 @@ export class DomUi {
 
     const currentLine = state.dialogue.lines[state.dialogue.index] ?? "";
     this.dialoguePanel.classList.add("visible");
-    this.dialoguePanel.innerHTML = `
-      <div class="eyebrow">DIALOGUE</div>
-      <div class="panel-header">
-        <h2>${state.dialogue.title}</h2>
-        <span>${state.dialogue.index + 1} / ${state.dialogue.lines.length}</span>
-      </div>
-      <p class="dialogue-line">${currentLine}</p>
-      <div class="dialogue-footer">
-        <p class="panel-note">Space 또는 Enter 로 계속 진행할 수 있습니다.</p>
-        <button class="primary" data-dialogue-next>${state.dialogue.index >= state.dialogue.lines.length - 1 ? "닫기" : "다음"}</button>
-      </div>
-    `;
+    this.dialoguePanel.innerHTML = this.renderPanelFrame({
+      key: "dialogue",
+      eyebrow: "DIALOGUE",
+      title: state.dialogue.title,
+      controls: `<span class="pill">${state.dialogue.index + 1} / ${state.dialogue.lines.length}</span>`,
+      body: `
+        <p class="dialogue-line">${currentLine}</p>
+        <div class="dialogue-footer">
+          <p class="panel-note">Space 또는 Enter 로 계속 진행할 수 있습니다.</p>
+          <button class="primary" data-dialogue-next>${state.dialogue.index >= state.dialogue.lines.length - 1 ? "닫기" : "다음"}</button>
+        </div>
+      `,
+    });
     (this.dialoguePanel.querySelector("[data-dialogue-next]") as HTMLButtonElement).onclick = () => this.callbacks.onDialogueNext();
+    this.bindPanelToggle("dialogue");
   }
 
   private renderBattle(battle: BattleState | null, skills: SkillDefinition[], tactics: TacticDefinition[]): void {
@@ -694,49 +814,50 @@ export class DomUi {
     ].filter((entry): entry is string => Boolean(entry));
 
     this.battlePanel.classList.add("visible");
-    this.battlePanel.innerHTML = `
-      <div class="eyebrow">BATTLE</div>
-      <div class="panel-header">
-        <h2>${battle.enemy.name}</h2>
-        <span>턴 ${battle.turnNumber}</span>
-      </div>
-      <div class="battle-stats">
-        <div><span>적 HP</span><strong>${Math.round(battle.enemy.currentHp)} / ${battle.enemy.maxHp}</strong></div>
-        <div><span>내 HP</span><strong>${Math.round(battle.player.currentHp)} / ${battle.player.maxHp}</strong></div>
-        <div><span>내 MP</span><strong>${Math.round(battle.player.currentMp)} / ${battle.player.maxMp}</strong></div>
-        <div><span>전황</span><strong>${battle.isBoss ? "보스전" : "일반전"}</strong></div>
-      </div>
-      <div class="battle-status-strip">
-        ${statuses.map((status) => `<span class="pill">${status}</span>`).join("") || `<span class="pill muted">지속 효과 없음</span>`}
-      </div>
-      <div class="battle-actions">
-        <button data-battle-basic="attack"><strong>공격</strong><span>1</span></button>
-        <button data-battle-basic="normal"><strong>일반</strong><span>2</span></button>
-        <button data-battle-basic="defend"><strong>방어</strong><span>3</span></button>
-      </div>
-      <div class="action-stack">
-        <h3>특수 기술</h3>
-        ${skills.map((skill) => `
-          <button data-battle-skill="${skill.id}" ${battle.player.currentMp < skill.manaCost ? "disabled" : ""}>
-            <strong>${skill.name}</strong>
-            <span>MP ${skill.manaCost}</span>
-          </button>
-        `).join("") || `<p class="panel-note">습득한 기술이 없습니다.</p>`}
-      </div>
-      <div class="action-stack">
-        <h3>전술</h3>
-        ${tactics.map((tactic) => `
-          <button data-battle-tactic="${tactic.id}">
-            <strong>${tactic.name}</strong>
-            <span>${tactic.description}</span>
-          </button>
-        `).join("") || `<p class="panel-note">습득한 전술이 없습니다.</p>`}
-      </div>
-      <div class="action-stack battle-feed">
-        <h3>최근 전황</h3>
-        ${battle.log.slice(-6).map((entry) => `<div class="battle-feed-item">${entry}</div>`).join("")}
-      </div>
-    `;
+    this.battlePanel.innerHTML = this.renderPanelFrame({
+      key: "battle",
+      eyebrow: "BATTLE",
+      title: battle.enemy.name,
+      controls: `<span class="pill">턴 ${battle.turnNumber}</span>`,
+      body: `
+        <div class="battle-stats">
+          <div><span>적 HP</span><strong>${Math.round(battle.enemy.currentHp)} / ${battle.enemy.maxHp}</strong></div>
+          <div><span>내 HP</span><strong>${Math.round(battle.player.currentHp)} / ${battle.player.maxHp}</strong></div>
+          <div><span>내 MP</span><strong>${Math.round(battle.player.currentMp)} / ${battle.player.maxMp}</strong></div>
+          <div><span>전황</span><strong>${battle.isBoss ? "보스전" : "일반전"}</strong></div>
+        </div>
+        <div class="battle-status-strip">
+          ${statuses.map((status) => `<span class="pill">${status}</span>`).join("") || `<span class="pill muted">지속 효과 없음</span>`}
+        </div>
+        <div class="battle-actions">
+          <button data-battle-basic="attack"><strong>공격</strong><span>1</span></button>
+          <button data-battle-basic="normal"><strong>일반</strong><span>2</span></button>
+          <button data-battle-basic="defend"><strong>방어</strong><span>3</span></button>
+        </div>
+        <div class="action-stack">
+          <h3>특수 기술</h3>
+          ${skills.map((skill) => `
+            <button data-battle-skill="${skill.id}" ${battle.player.currentMp < skill.manaCost ? "disabled" : ""}>
+              <strong>${skill.name}</strong>
+              <span>MP ${skill.manaCost}</span>
+            </button>
+          `).join("") || `<p class="panel-note">습득한 기술이 없습니다.</p>`}
+        </div>
+        <div class="action-stack">
+          <h3>전술</h3>
+          ${tactics.map((tactic) => `
+            <button data-battle-tactic="${tactic.id}">
+              <strong>${tactic.name}</strong>
+              <span>${tactic.description}</span>
+            </button>
+          `).join("") || `<p class="panel-note">습득한 전술이 없습니다.</p>`}
+        </div>
+        <div class="action-stack battle-feed">
+          <h3>최근 전황</h3>
+          ${battle.log.slice(-6).map((entry) => `<div class="battle-feed-item">${entry}</div>`).join("")}
+        </div>
+      `,
+    });
 
     this.battlePanel.querySelectorAll<HTMLButtonElement>("[data-battle-basic]").forEach((button) => {
       button.onclick = () => this.callbacks.onBattleAction({ kind: button.dataset.battleBasic as "attack" | "normal" | "defend" });
@@ -747,6 +868,7 @@ export class DomUi {
     this.battlePanel.querySelectorAll<HTMLButtonElement>("[data-battle-tactic]").forEach((button) => {
       button.onclick = () => this.callbacks.onBattleAction({ kind: "tactic", tacticId: button.dataset.battleTactic! });
     });
+    this.bindPanelToggle("battle");
   }
 
   private renderChat(state: AppState): void {
@@ -756,28 +878,27 @@ export class DomUi {
       ? "같은 씬의 유저에게 말하기"
       : "연결 복구 후 채팅 가능";
 
-    this.chatPanel.innerHTML = `
-      <div class="panel-header">
-        <div>
-          <div class="eyebrow">SOCIAL</div>
-          <h2>지역 채팅</h2>
+    this.chatPanel.innerHTML = this.renderPanelFrame({
+      key: "chat",
+      eyebrow: "SOCIAL",
+      title: "지역 채팅",
+      controls: `<span class="status-pill ${state.connectionStatus}">${nearbyPlayers.length} nearby</span>`,
+      body: `
+        <div class="presence-strip">
+          ${nearbyPlayers.map((presence) => `<span class="pill">${presence.username}</span>`).join("") || `<span class="pill muted">같은 씬의 다른 유저 없음</span>`}
         </div>
-        <span class="status-pill ${state.connectionStatus}">${nearbyPlayers.length} nearby</span>
-      </div>
-      <div class="presence-strip">
-        ${nearbyPlayers.map((presence) => `<span class="pill">${presence.username}</span>`).join("") || `<span class="pill muted">같은 씬의 다른 유저 없음</span>`}
-      </div>
-      <div class="chat-list">
-        ${state.chatMessages
-          .slice(-8)
-          .map((message) => `<div class="chat-item"><strong>${message.username}</strong><span>${message.text}</span></div>`)
-          .join("") || `<p class="panel-note">${state.connectionStatus === "online" ? "같은 씬의 유저에게 말을 걸 수 있습니다." : "실시간 연결이 복구되면 채팅이 다시 활성화됩니다."}</p>`}
-      </div>
-      <form class="chat-form">
-        <input name="text" placeholder="${chatPlaceholder}" ${canChat ? "" : "disabled"} />
-        <button type="submit" class="primary" ${canChat ? "" : "disabled"}>전송</button>
-      </form>
-    `;
+        <div class="chat-list">
+          ${state.chatMessages
+            .slice(-8)
+            .map((message) => `<div class="chat-item"><strong>${message.username}</strong><span>${message.text}</span></div>`)
+            .join("") || `<p class="panel-note">${state.connectionStatus === "online" ? "같은 씬의 유저에게 말을 걸 수 있습니다." : "실시간 연결이 복구되면 채팅이 다시 활성화됩니다."}</p>`}
+        </div>
+        <form class="chat-form">
+          <input name="text" placeholder="${chatPlaceholder}" ${canChat ? "" : "disabled"} />
+          <button type="submit" class="primary" ${canChat ? "" : "disabled"}>전송</button>
+        </form>
+      `,
+    });
     const form = this.chatPanel.querySelector(".chat-form") as HTMLFormElement;
     form.onsubmit = (event) => {
       event.preventDefault();
@@ -788,20 +909,22 @@ export class DomUi {
         if (input) input.value = "";
       }
     };
+    this.bindPanelToggle("chat");
   }
 
   private renderLogs(logs: string[]): void {
-    this.logPanel.innerHTML = `
-      <div class="panel-header">
-        <div>
-          <div class="eyebrow">EVENT FEED</div>
-          <h2>최근 이벤트</h2>
+    this.logPanel.innerHTML = this.renderPanelFrame({
+      key: "log",
+      eyebrow: "EVENT FEED",
+      title: "최근 이벤트",
+      controls: `<span class="pill">${Math.min(logs.length, 6)} entries</span>`,
+      body: `
+        <div class="log-list">
+          ${logs.slice(0, 6).map((entry) => `<div class="log-item">${entry}</div>`).join("") || `<p class="panel-note">저장, 이동, 전투 결과가 여기에 쌓입니다.</p>`}
         </div>
-      </div>
-      <div class="log-list">
-        ${logs.slice(0, 6).map((entry) => `<div class="log-item">${entry}</div>`).join("") || `<p class="panel-note">저장, 이동, 전투 결과가 여기에 쌓입니다.</p>`}
-      </div>
-    `;
+      `,
+    });
+    this.bindPanelToggle("log");
   }
 
   private renderPlayerMeters(player: PlayerSave, nearbyCount: number): string {
