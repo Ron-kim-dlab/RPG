@@ -6,10 +6,33 @@ Use this guide when rotating the MongoDB credential and deployment secrets track
 
 - Create a new MongoDB user scoped to the RPG database only.
 - Prefer a dedicated application user instead of reusing an admin account.
+- The minimum recommended role is `readWrite` on the `rpg-rebuild` database only.
 - Generate a new JWT secret:
 
 ```bash
 corepack pnpm security:generate-jwt
+```
+
+Create a dedicated Mongo application user:
+
+```bash
+corepack pnpm security:create-mongo-user -- \
+  --admin-uri "mongodb://127.0.0.1:27017/admin" \
+  --db "rpg-rebuild" \
+  --username "rpg_app" \
+  --password "replace-with-a-strong-password"
+```
+
+If you intentionally want to rotate the password of the same application user later, re-run with `--allow-update`.
+
+If you only need the encoded URI, you can build it without touching the database:
+
+```bash
+corepack pnpm security:build-mongo-uri -- \
+  --base-uri "mongodb://127.0.0.1:27017/admin" \
+  --db "rpg-rebuild" \
+  --username "rpg_app" \
+  --password "replace-with-a-strong-password"
 ```
 
 ## 2. Update local server env
