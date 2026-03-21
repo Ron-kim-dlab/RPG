@@ -78,7 +78,7 @@ export class DomUi {
   ): void {
     this.renderAuth(state);
     this.renderHud(state, currentLocation);
-    this.renderActions(state.player, currentLocation, state.battle, equipmentForLocation, skillForLocation, equipped);
+    this.renderActions(state, currentLocation, equipmentForLocation, skillForLocation, equipped);
     this.renderDialogue(state);
     this.renderBattle(state.battle, learnedSkills, learnedTactics);
     this.renderChat(state);
@@ -138,6 +138,8 @@ export class DomUi {
   private renderHud(state: AppState, currentLocation: LocationNode | null): void {
     const nearbyPlayers = state.presence.filter((entry) => entry.username !== state.player?.username);
     const locationTitle = currentLocation ? `${currentLocation.mainLocation} · ${currentLocation.subLocation}` : "월드 로딩 중";
+    const overlayMode = state.battle ? "battle" : state.dialogue ? "dialogue" : "explore";
+    const prompt = state.fieldPrompt;
 
     this.hudPanel.innerHTML = `
       <div class="hud-row">
@@ -148,12 +150,23 @@ export class DomUi {
         </div>
         <div class="hud-meta">
           <span class="status-pill ${state.connectionStatus}">${state.connectionStatus}</span>
+          <span class="status-pill mode-pill mode-${overlayMode}">${overlayMode}</span>
           <button class="ghost" data-save ${state.player ? "" : "disabled"}>저장</button>
         </div>
       </div>
       <div class="meter-grid">
         ${state.player ? this.renderPlayerMeters(state.player, nearbyPlayers.length) : this.renderLoadingMeters(state)}
       </div>
+      ${prompt ? `
+        <div class="context-card ${prompt.tone}">
+          <div>
+            <div class="eyebrow">FIELD PROMPT</div>
+            <h3>${prompt.title}</h3>
+            <p>${prompt.body}</p>
+          </div>
+          <span class="pill">${prompt.actionLabel}</span>
+        </div>
+      ` : ""}
     `;
 
     const saveButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-save]");
@@ -163,13 +176,13 @@ export class DomUi {
   }
 
   private renderActions(
-    player: PlayerSave | null,
+    state: AppState,
     currentLocation: LocationNode | null,
-    battle: BattleState | null,
     equipmentForLocation: EquipmentDefinition[],
     skillsForLocation: SkillDefinition[],
     equipped: EquipmentDefinition[],
   ): void {
+    const { player, battle, battleReport } = state;
     if (!player || !currentLocation) {
       this.actionPanel.classList.remove("visible");
       this.actionPanel.innerHTML = "";
@@ -223,6 +236,13 @@ export class DomUi {
         ${skillButtons}
         ${!hasContextActions ? `<div class="dock-card static"><strong>탐험 구간</strong><span>출구 진입 후 Enter 로 씬 전환, NPC 근처에서 Space 로 대화</span></div>` : ""}
         ${battle ? `<div class="dock-card static danger"><strong>전투 진행 중</strong><span>오른쪽 전투 오버레이에서 행동을 선택하세요.</span></div>` : ""}
+        ${battleReport ? `
+          <div class="dock-card static ${battleReport.outcome === "enemy_win" ? "danger" : "accent"} report-card">
+            <strong>${battleReport.title}</strong>
+            <span>${battleReport.summary}</span>
+            <span>최근 전투 로그 ${battleReport.lines.length}개가 오른쪽 패널에 반영되었습니다.</span>
+          </div>
+        ` : ""}
       </div>
     `;
 
@@ -257,7 +277,10 @@ export class DomUi {
         <span>${state.dialogue.index + 1} / ${state.dialogue.lines.length}</span>
       </div>
       <p class="dialogue-line">${currentLine}</p>
-      <button class="primary" data-dialogue-next>${state.dialogue.index >= state.dialogue.lines.length - 1 ? "닫기" : "다음"}</button>
+      <div class="dialogue-footer">
+        <p class="panel-note">Space 또는 Enter 로 계속 진행할 수 있습니다.</p>
+        <button class="primary" data-dialogue-next>${state.dialogue.index >= state.dialogue.lines.length - 1 ? "닫기" : "다음"}</button>
+      </div>
     `;
     (this.dialoguePanel.querySelector("[data-dialogue-next]") as HTMLButtonElement).onclick = () => this.callbacks.onDialogueNext();
   }
@@ -268,6 +291,12 @@ export class DomUi {
       this.battlePanel.innerHTML = "";
       return;
     }
+
+    const statuses = [
+      battle.charged ? "충전 완료" : null,
+      battle.evadeNext ? "다음 반격 회피 준비" : null,
+      battle.guardBreakTurns > 0 ? `가드 브레이크 ${battle.guardBreakTurns}턴` : null,
+    ].filter((entry): entry is string => Boolean(entry));
 
     this.battlePanel.classList.add("visible");
     this.battlePanel.innerHTML = `
@@ -282,18 +311,35 @@ export class DomUi {
         <div><span>내 MP</span><strong>${Math.round(battle.player.currentMp)} / ${battle.player.maxMp}</strong></div>
         <div><span>전황</span><strong>${battle.isBoss ? "보스전" : "일반전"}</strong></div>
       </div>
+      <div class="battle-status-strip">
+        ${statuses.map((status) => `<span class="pill">${status}</span>`).join("") || `<span class="pill muted">지속 효과 없음</span>`}
+      </div>
       <div class="battle-actions">
-        <button data-battle-basic="attack">공격</button>
-        <button data-battle-basic="normal">일반</button>
-        <button data-battle-basic="defend">방어</button>
+        <button data-battle-basic="attack"><strong>공격</strong><span>1</span></button>
+        <button data-battle-basic="normal"><strong>일반</strong><span>2</span></button>
+        <button data-battle-basic="defend"><strong>방어</strong><span>3</span></button>
       </div>
       <div class="action-stack">
         <h3>특수 기술</h3>
-        ${skills.map((skill) => `<button data-battle-skill="${skill.id}">${skill.name}<span>MP ${skill.manaCost}</span></button>`).join("") || `<p class="panel-note">습득한 기술이 없습니다.</p>`}
+        ${skills.map((skill) => `
+          <button data-battle-skill="${skill.id}" ${battle.player.currentMp < skill.manaCost ? "disabled" : ""}>
+            <strong>${skill.name}</strong>
+            <span>MP ${skill.manaCost}</span>
+          </button>
+        `).join("") || `<p class="panel-note">습득한 기술이 없습니다.</p>`}
       </div>
       <div class="action-stack">
         <h3>전술</h3>
-        ${tactics.map((tactic) => `<button data-battle-tactic="${tactic.id}">${tactic.name}</button>`).join("") || `<p class="panel-note">습득한 전술이 없습니다.</p>`}
+        ${tactics.map((tactic) => `
+          <button data-battle-tactic="${tactic.id}">
+            <strong>${tactic.name}</strong>
+            <span>${tactic.description}</span>
+          </button>
+        `).join("") || `<p class="panel-note">습득한 전술이 없습니다.</p>`}
+      </div>
+      <div class="action-stack battle-feed">
+        <h3>최근 전황</h3>
+        ${battle.log.slice(-6).map((entry) => `<div class="battle-feed-item">${entry}</div>`).join("")}
       </div>
     `;
 

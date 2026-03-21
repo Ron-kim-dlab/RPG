@@ -275,6 +275,18 @@ button {
   background: rgba(83, 181, 156, 0.18);
 }
 
+.mode-pill.mode-explore {
+  background: rgba(95, 168, 211, 0.18);
+}
+
+.mode-pill.mode-dialogue {
+  background: rgba(83, 181, 156, 0.18);
+}
+
+.mode-pill.mode-battle {
+  background: rgba(216, 109, 96, 0.18);
+}
+
 .pill.muted {
   color: var(--text-muted);
   background: rgba(255, 255, 255, 0.05);
@@ -285,6 +297,36 @@ button {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
+}
+
+.context-card {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.context-card.accent {
+  background: rgba(83, 181, 156, 0.12);
+}
+
+.context-card.danger {
+  background: rgba(216, 109, 96, 0.12);
+}
+
+.context-card h3 {
+  margin: 6px 0 0;
+}
+
+.context-card p {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .meter-card,
@@ -417,10 +459,21 @@ button {
   background: rgba(216, 109, 96, 0.15);
 }
 
+.report-card span + span {
+  margin-top: 2px;
+}
+
 .dialogue-line {
   margin: 14px 0 18px;
   font-size: 1.06rem;
   line-height: 1.75;
+}
+
+.dialogue-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .battle-stats {
@@ -428,6 +481,13 @@ button {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin: 14px 0;
+}
+
+.battle-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .battle-actions {
@@ -438,9 +498,18 @@ button {
 }
 
 .battle-actions button {
+  display: grid;
+  gap: 6px;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-main);
+  text-align: left;
+}
+
+.battle-actions button span {
+  color: var(--text-muted);
+  font-family: "Space Mono", monospace;
+  font-size: 0.78rem;
 }
 
 .action-stack {
@@ -459,6 +528,33 @@ button {
   justify-content: space-between;
   align-items: center;
   padding: 11px 14px;
+}
+
+.action-stack button strong {
+  font-size: 0.95rem;
+}
+
+.action-stack button span {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.action-stack button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  transform: none;
+}
+
+.battle-feed {
+  margin-top: 16px;
+}
+
+.battle-feed-item {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .chat-list,
@@ -568,7 +664,9 @@ button {
   .hud-row,
   .dock-header,
   .panel-header,
-  .chat-form {
+  .chat-form,
+  .dialogue-footer,
+  .context-card {
     grid-template-columns: 1fr;
     display: grid;
   }

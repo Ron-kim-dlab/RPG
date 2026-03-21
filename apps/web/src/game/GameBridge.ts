@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import type { DialogueNpc, EncounterZone, Facing, PlayerSave, PresenceState, WorldContent } from "@rpg/game-core";
+import type { FieldPrompt, OverlayMode } from "../gameplay";
 import { BootScene } from "./BootScene";
 import { LoadingScene } from "./LoadingScene";
 import { LoginScene } from "./LoginScene";
@@ -7,10 +8,12 @@ import { OverworldScene } from "./OverworldScene";
 
 type BridgeCallbacks = {
   canMove: () => boolean;
+  getOverlayMode: () => OverlayMode;
   onPositionChange: (x: number, y: number, facing: Facing) => void;
   onSceneChange: (locationKey: string) => void;
   onInteractNpc: (npc: DialogueNpc) => void;
   onEncounter: (zone: EncounterZone) => void;
+  onFieldPromptChange: (prompt: FieldPrompt) => void;
 };
 
 export class GameBridge {
