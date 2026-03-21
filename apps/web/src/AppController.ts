@@ -19,6 +19,7 @@ import {
   performBattleAction,
   pickRandom,
 } from "@rpg/game-core";
+import { validateAuthCredentials } from "./auth";
 import { createBattleReport, deriveOverlayMode, didSceneChange } from "./gameplay";
 import { ApiClient } from "./net/api";
 import { PresenceClient } from "./net/socket";
@@ -210,9 +211,18 @@ export class AppController {
   }
 
   private async authenticate(mode: "login" | "register", username: string, password: string): Promise<void> {
+    const normalizedUsername = username.trim();
+    const validationMessage = validateAuthCredentials(normalizedUsername, password);
+    if (validationMessage) {
+      this.store.pushLog(validationMessage);
+      return;
+    }
+
     this.store.setState({ pending: true });
     try {
-      const session = mode === "login" ? await this.api.login(username, password) : await this.api.register(username, password);
+      const session = mode === "login"
+        ? await this.api.login(normalizedUsername, password)
+        : await this.api.register(normalizedUsername, password);
       localStorage.setItem(TOKEN_KEY, session.token);
       this.store.setState({
         token: session.token,
@@ -224,7 +234,7 @@ export class AppController {
         presence: [],
         pending: false,
       });
-      this.store.pushLog(`${username} ${mode === "login" ? "로그인" : "회원가입"} 성공`);
+      this.store.pushLog(`${normalizedUsername} ${mode === "login" ? "로그인" : "회원가입"} 성공`);
       this.presence.connect(session.token);
       this.enterPresence(session.player, false);
       await this.maybeOpenLocationDialogue(session.player.locationKey);

@@ -9,7 +9,7 @@ export type RuntimeMode = "development" | "production" | "test";
 export type ServerEnv = {
   runtimeMode: RuntimeMode;
   port: number;
-  clientOrigin: string;
+  clientOrigin: string | string[];
   jwtSecret: string;
   jwtExpiresIn: string;
   passwordHashRounds: number;
@@ -55,18 +55,29 @@ function readRuntimeMode(source: NodeJS.ProcessEnv): RuntimeMode {
   throw new Error("NODE_ENV must be one of: development, production, test.");
 }
 
-function readClientOrigin(source: NodeJS.ProcessEnv): string {
+function readClientOrigin(source: NodeJS.ProcessEnv): string | string[] {
   const value = source.CLIENT_ORIGIN?.trim() || "http://localhost:5173";
+  const origins = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      try {
+        const parsed = new URL(entry);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          throw new Error();
+        }
+        return parsed.origin;
+      } catch {
+        throw new Error("CLIENT_ORIGIN must be a valid comma-separated list of http/https URLs.");
+      }
+    });
 
-  try {
-    const parsed = new URL(value);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error();
-    }
-    return parsed.origin;
-  } catch {
-    throw new Error("CLIENT_ORIGIN must be a valid http/https URL.");
+  if (origins.length === 0) {
+    throw new Error("CLIENT_ORIGIN must include at least one valid http/https URL.");
   }
+
+  return origins.length === 1 ? origins[0] : origins;
 }
 
 function readJwtSecret(source: NodeJS.ProcessEnv): string {

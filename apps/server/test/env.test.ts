@@ -23,6 +23,16 @@ describe("server env", () => {
     expect(() => readEnv(createProcessEnv({ STORAGE_DRIVER: "mongo", MONGODB_URI: "" }))).toThrow(/MONGODB_URI/);
   });
 
+  it("supports multiple client origins in a comma-separated list", () => {
+    const env = readEnv(
+      createProcessEnv({
+        CLIENT_ORIGIN: "http://localhost:5173, http://127.0.0.1:5173",
+      }),
+    );
+
+    expect(env.clientOrigin).toEqual(["http://localhost:5173", "http://127.0.0.1:5173"]);
+  });
+
   it("rejects memory storage in production", () => {
     expect(() => readEnv(createProcessEnv({ NODE_ENV: "production", STORAGE_DRIVER: "memory" }))).toThrow(/production/);
   });
