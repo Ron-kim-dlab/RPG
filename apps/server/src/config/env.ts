@@ -77,7 +77,7 @@ function readClientOrigin(source: NodeJS.ProcessEnv): string | string[] {
     throw new Error("CLIENT_ORIGIN must include at least one valid http/https URL.");
   }
 
-  return origins.length === 1 ? origins[0] : origins;
+  return origins.length === 1 ? origins[0]! : origins;
 }
 
 function readJwtSecret(source: NodeJS.ProcessEnv): string {
