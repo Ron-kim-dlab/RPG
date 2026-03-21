@@ -23,7 +23,7 @@ Implemented today:
 Still in progress:
 - multiplayer hardening and reconnect recovery
 - release-quality test gates and external playtest readiness
-- production secret rotation and deployment hardening
+- production secret rotation and deployment hardening tooling
 
 Relevant open issues:
 - `#7` Scene-local multiplayer presence and chat
@@ -194,6 +194,8 @@ Current automated coverage includes:
 - `JWT_SECRET` must be at least 32 characters
 - Rotate any MongoDB credential that was previously exposed before production use
 - Review `docs/security-checklist.md` before deployment
+- Use `corepack pnpm security:generate-jwt` and `corepack pnpm security:sync-gh-secrets` during secret rotation
+- Run `corepack pnpm security:smoke` after applying new deployment secrets
 
 ## Collaboration
 
@@ -204,6 +206,7 @@ Current automated coverage includes:
 See:
 - `CONTRIBUTING.md`
 - `docs/asset-pipeline.md`
+- `docs/secret-rotation.md`
 - `docs/security-checklist.md`
 
 ## Roadmap Snapshot
