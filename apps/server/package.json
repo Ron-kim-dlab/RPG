@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup --config tsup.config.ts",
-    "lint": "eslint src test --ext .ts",
+    "lint": "eslint src scripts test --ext .ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "smoke:secrets": "tsx scripts/smoke-secrets.ts"
   },
   "dependencies": {
     "@rpg/game-core": "workspace:*",

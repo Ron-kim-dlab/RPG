@@ -11,6 +11,8 @@
 - Store secrets only in untracked `.env` or platform-managed environment variables.
 - Rotate any MongoDB credential that was previously exposed before the next deployment.
 - Prefer a dedicated MongoDB user scoped to the RPG database only.
+- Use `corepack pnpm security:sync-gh-secrets --dry-run` before writing GitHub secrets.
+- Use `corepack pnpm security:audit-legacy-runtime` to review old runtime paths.
 
 ## Local setup
 - Copy `apps/server/.env.example` to `apps/server/.env`.
@@ -21,3 +23,5 @@
 - `corepack pnpm --filter @rpg/server test`
 - `corepack pnpm --filter @rpg/server typecheck`
 - `corepack pnpm --filter @rpg/server lint`
+- `corepack pnpm security:smoke`
+- See `docs/secret-rotation.md` for the full rotation flow.
