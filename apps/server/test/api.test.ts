@@ -17,6 +17,52 @@ function createWorld(): WorldContent {
   };
 }
 
+function createPlayableWorld(): WorldContent {
+  return {
+    startLocationKey: "시작의 마을::마을 입구",
+    locations: {
+      "시작의 마을::마을 입구": {
+        key: "시작의 마을::마을 입구",
+        mainLocation: "시작의 마을",
+        subLocation: "마을 입구",
+        story: [],
+        connections: [],
+        scene: {
+          sceneId: "town_gate",
+          themeId: "village",
+          width: 1024,
+          height: 768,
+          tileSize: 32,
+          backgroundColor: "#10231b",
+          spawn: { x: 512, y: 636 },
+          portals: [],
+          npcs: [],
+          encounterZones: [],
+          collisionZones: [{ id: "center", x: 432, y: 304, width: 160, height: 88 }],
+          assets: {
+            layoutId: "town_gate",
+            mapJsonPath: "/maps/test.json",
+            terrainTexturePath: "/terrain.svg",
+            propsTexturePath: "/props.svg",
+            playerTexturePath: "/player.svg",
+            remotePlayerTexturePath: "/remote.svg",
+            npcTexturePath: "/npc.svg",
+            portalTexturePath: "/portal.svg",
+            encounterTexturePath: "/encounter.svg",
+            license: "placeholder",
+            attribution: "test",
+          },
+        },
+      },
+    },
+    equipment: [],
+    skills: [],
+    tactics: [],
+    enemies: {},
+    enemiesByLocation: {},
+  };
+}
+
 function createEnv() {
   return {
     runtimeMode: "test" as const,
@@ -180,5 +226,40 @@ describe("http api", () => {
         code: "validation_error",
       },
     });
+  });
+
+  it("normalizes a blocked saved position to the scene spawn on player load", async () => {
+    const repository = new MemoryUserRepository();
+    const world = createPlayableWorld();
+    const context = await createAppContext({
+      env: createEnv(),
+      repository,
+      worldLoader: async () => world,
+    });
+
+    const agent = request(context.app);
+    const blockedPlayer = {
+      ...createStarterPlayer("stuck-hero", world),
+      position: { x: 512, y: 384 },
+    };
+
+    await repository.saveAccount({
+      username: "stuck-hero",
+      passwordHash: "secret123",
+      player: blockedPlayer,
+    });
+
+    const login = await agent
+      .post("/auth/login")
+      .send({ username: "stuck-hero", password: "secret123" })
+      .expect(200);
+
+    const loginPayload = login.body as ApiResponse<SessionPayload>;
+    expect(loginPayload.success).toBe(true);
+    if (!loginPayload.success) {
+      throw new Error("login response should be successful");
+    }
+
+    expect(loginPayload.data.player.position).toEqual({ x: 512, y: 636 });
   });
 });

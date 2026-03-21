@@ -2,6 +2,7 @@ import type { BattleState, ChatMessage, PlayerSave, PresenceState, WorldContent 
 import type { BattleReport, FieldPrompt } from "../gameplay";
 
 export type DialogueState = {
+  kind: "location" | "npc";
   title: string;
   locationKey: string;
   lines: string[];

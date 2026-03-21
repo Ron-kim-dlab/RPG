@@ -13,8 +13,10 @@ import type { FieldPrompt, OverlayMode } from "../gameplay";
 type SceneCallbacks = {
   canMove: () => boolean;
   getOverlayMode: () => OverlayMode;
+  hasPendingLocationStory: () => boolean;
   onPositionChange: (x: number, y: number, facing: Facing) => void;
   onSceneChange: (locationKey: string) => void;
+  onOpenLocationStory: () => void;
   onInteractNpc: (npc: DialogueNpc) => void;
   onEncounter: (zone: EncounterZone) => void;
   onFieldPromptChange: (prompt: FieldPrompt) => void;
@@ -204,8 +206,10 @@ export class OverworldScene extends Phaser.Scene {
     const activePortal = this.findActivePortal(nextX, nextY);
     const activeNpc = this.findActiveNpc(nextX, nextY);
     const activeEncounter = this.findActiveEncounter(nextX, nextY);
+    const hasPendingLocationStory = this.callbacks.hasPendingLocationStory();
     const prompt = this.resolvePrompt({
       overlayMode,
+      hasPendingLocationStory,
       portal: activePortal,
       npc: activeNpc?.npc ?? null,
       encounter: activeEncounter?.data ?? null,
@@ -221,6 +225,13 @@ export class OverworldScene extends Phaser.Scene {
     if (activePortal && Phaser.Input.Keyboard.JustDown(this.keyEnter)) {
       this.callbacks.onSceneChange(activePortal.locationKey);
       return;
+    }
+
+    if (!activePortal && !activeNpc && hasPendingLocationStory) {
+      if (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyEnter)) {
+        this.callbacks.onOpenLocationStory();
+        return;
+      }
     }
 
     if (activeNpc && Phaser.Input.Keyboard.JustDown(this.keySpace)) {
@@ -391,6 +402,7 @@ export class OverworldScene extends Phaser.Scene {
 
   private resolvePrompt(params: {
     overlayMode: OverlayMode;
+    hasPendingLocationStory: boolean;
     portal: { label: string } | null;
     npc: DialogueNpc | null;
     encounter: EncounterZone | null;
@@ -421,6 +433,16 @@ export class OverworldScene extends Phaser.Scene {
         title: `${params.portal.label} 이동 준비`,
         body: "출구 위에서 Enter 를 누르면 다음 씬으로 전환됩니다.",
         actionLabel: "Enter",
+        tone: "accent",
+      };
+    }
+
+    if (params.hasPendingLocationStory) {
+      return {
+        kind: "story",
+        title: "지역 이야기 확인 가능",
+        body: "이 지역의 도입 대사를 아직 읽지 않았습니다. Space 또는 Enter 로 바로 열 수 있습니다.",
+        actionLabel: "Space / Enter",
         tone: "accent",
       };
     }

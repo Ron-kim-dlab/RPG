@@ -155,7 +155,7 @@ export class DomUi {
         <div class="hud-brand">
           <div class="eyebrow">OVERWORLD MVP</div>
           <h1>${locationTitle}</h1>
-          <p>${state.player ? "WASD 이동 · Space 대화 · Enter 전환 · B 교전" : "접속 후 오버월드 탐험이 활성화됩니다."}</p>
+          <p>${state.player ? "WASD 이동 · Space 상호작용/이야기 · Enter 전환 · B 교전" : "접속 후 오버월드 탐험이 활성화됩니다."}</p>
         </div>
         <div class="hud-meta">
           <span class="status-pill ${state.connectionStatus}">${state.connectionStatus}</span>

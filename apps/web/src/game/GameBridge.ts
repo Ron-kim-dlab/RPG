@@ -9,8 +9,10 @@ import { OverworldScene } from "./OverworldScene";
 type BridgeCallbacks = {
   canMove: () => boolean;
   getOverlayMode: () => OverlayMode;
+  hasPendingLocationStory: () => boolean;
   onPositionChange: (x: number, y: number, facing: Facing) => void;
   onSceneChange: (locationKey: string) => void;
+  onOpenLocationStory: () => void;
   onInteractNpc: (npc: DialogueNpc) => void;
   onEncounter: (zone: EncounterZone) => void;
   onFieldPromptChange: (prompt: FieldPrompt) => void;

@@ -26,6 +26,54 @@ export function getMaxMp(level: number): number {
   return maxMp;
 }
 
+function fallbackPosition(): PlayerSave["position"] {
+  return { x: 512, y: 384 };
+}
+
+export function resolveLocationSpawn(world: WorldContent, locationKey: string): PlayerSave["position"] {
+  const location = world.locations[locationKey];
+  return location ? { ...location.scene.spawn } : fallbackPosition();
+}
+
+function isPositionInsideCollision(world: WorldContent, locationKey: string, position: PlayerSave["position"]): boolean {
+  const location = world.locations[locationKey];
+  if (!location) {
+    return false;
+  }
+
+  return location.scene.collisionZones.some((zone) => (
+    position.x >= zone.x
+    && position.x <= zone.x + zone.width
+    && position.y >= zone.y
+    && position.y <= zone.y + zone.height
+  ));
+}
+
+export function normalizePlayerPosition(player: PlayerSave, world: WorldContent): PlayerSave {
+  const location = world.locations[player.locationKey];
+  if (!location) {
+    return player;
+  }
+
+  const position = player.position;
+  const hasValidNumbers = Number.isFinite(position?.x) && Number.isFinite(position?.y);
+  const insideBounds =
+    hasValidNumbers
+    && position.x >= 36
+    && position.x <= location.scene.width - 36
+    && position.y >= 36
+    && position.y <= location.scene.height - 36;
+
+  if (insideBounds && !isPositionInsideCollision(world, player.locationKey, position)) {
+    return player;
+  }
+
+  return {
+    ...player,
+    position: resolveLocationSpawn(world, player.locationKey),
+  };
+}
+
 export function applyLevelUps(player: PlayerSave): { player: PlayerSave; messages: string[] } {
   const nextPlayer: PlayerSave = structuredClone(player);
   const messages: string[] = [];
@@ -51,7 +99,7 @@ export function applyLevelUps(player: PlayerSave): { player: PlayerSave; message
 export function createStarterPlayer(username: string, world: WorldContent): PlayerSave {
   const locationKey = world.startLocationKey || toLocationKey("시작의 마을", "마을 입구");
 
-  return {
+  return normalizePlayerPosition({
     version: 2,
     username,
     coins: 0,
@@ -64,7 +112,7 @@ export function createStarterPlayer(username: string, world: WorldContent): Play
     speed: 10,
     accuracy: 0.8,
     locationKey,
-    position: { x: 512, y: 384 },
+    position: resolveLocationSpawn(world, locationKey),
     facing: "down",
     visitedMainLocations: ["시작의 마을"],
     visitedLocationKeys: [locationKey],
@@ -82,7 +130,7 @@ export function createStarterPlayer(username: string, world: WorldContent): Play
     flags: {
       demonLordDefeated: false,
     },
-  };
+  }, world);
 }
 
 export function ensureStoryState(player: PlayerSave, locationKey: string): PlayerSave {
@@ -112,7 +160,7 @@ export function migrateLegacyPlayerSave(
   }
 
   if (legacy.version === 2) {
-    return legacy as PlayerSave;
+    return normalizePlayerPosition(legacy as PlayerSave, world);
   }
 
   const locationKey = toLocationKey(
@@ -137,7 +185,7 @@ export function migrateLegacyPlayerSave(
     };
   }
 
-  return {
+  return normalizePlayerPosition({
     version: 2,
     username,
     coins: Number(legacy.코인 ?? 0),
@@ -150,7 +198,7 @@ export function migrateLegacyPlayerSave(
     speed: Number(legacy.속도 ?? 10),
     accuracy: Number(legacy.명중률 ?? 0.8),
     locationKey,
-    position: { x: 512, y: 384 },
+    position: resolveLocationSpawn(world, locationKey),
     facing: "down",
     visitedMainLocations: (Array.isArray(legacy.방문) ? legacy.방문 : ["시작의 마을"]).map(String),
     visitedLocationKeys: (Array.isArray(legacy.세부방문) ? legacy.세부방문 : [])
@@ -175,5 +223,5 @@ export function migrateLegacyPlayerSave(
     flags: {
       demonLordDefeated: Boolean(legacy.마왕패배),
     },
-  };
+  }, world);
 }

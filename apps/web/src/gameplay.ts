@@ -1,7 +1,7 @@
 import type { BattleResolution, PlayerSave, WorldContent } from "@rpg/game-core";
 
 export type OverlayMode = "explore" | "dialogue" | "battle";
-export type FieldPromptKind = "idle" | "portal" | "npc" | "encounter" | "dialogue" | "battle";
+export type FieldPromptKind = "idle" | "portal" | "npc" | "encounter" | "dialogue" | "battle" | "story";
 export type FieldPromptTone = "neutral" | "accent" | "danger";
 
 export type FieldPrompt = {

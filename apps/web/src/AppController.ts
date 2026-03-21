@@ -25,6 +25,12 @@ import { ApiClient } from "./net/api";
 import { PresenceClient } from "./net/socket";
 import { GameBridge } from "./game/GameBridge";
 import { AppStore } from "./state/store";
+import {
+  advanceDialogueProgress,
+  createLocationStoryDialogue,
+  hasUnreadLocationStory,
+  prepareLocationStory,
+} from "./story";
 import { DomUi } from "./ui/dom";
 
 const TOKEN_KEY = "rpg-rebuild-token";
@@ -100,10 +106,19 @@ export class AppController {
         return Boolean(state.player && !state.battle && !state.dialogue);
       },
       getOverlayMode: () => deriveOverlayMode(this.store.getState()),
+      hasPendingLocationStory: () => {
+        const state = this.store.getState();
+        if (!state.player || !state.world) {
+          return false;
+        }
+        const location = state.world.locations[state.player.locationKey] ?? null;
+        return hasUnreadLocationStory(state.player, location);
+      },
       onPositionChange: (x, y, facing) => this.updatePosition(x, y, facing),
       onSceneChange: (locationKey) => {
         void this.changeLocation(locationKey);
       },
+      onOpenLocationStory: () => this.openCurrentLocationStory(),
       onInteractNpc: (npc) => this.openNpcDialogue(npc),
       onEncounter: (zone) => {
         void this.startEncounter(zone);
@@ -172,7 +187,7 @@ export class AppController {
           this.store.setState({ token, player, pending: false, battleReport: null });
           this.presence.connect(token);
           this.enterPresence(player, false);
-          await this.maybeOpenLocationDialogue(player.locationKey);
+          this.syncLocationStoryState(player.locationKey);
           return;
         } catch {
           localStorage.removeItem(TOKEN_KEY);
@@ -237,7 +252,7 @@ export class AppController {
       this.store.pushLog(`${normalizedUsername} ${mode === "login" ? "로그인" : "회원가입"} 성공`);
       this.presence.connect(session.token);
       this.enterPresence(session.player, false);
-      await this.maybeOpenLocationDialogue(session.player.locationKey);
+      this.syncLocationStoryState(session.player.locationKey);
     } catch (error) {
       this.store.setState({ pending: false });
       this.store.pushLog(error instanceof Error ? error.message : "인증 실패");
@@ -289,8 +304,36 @@ export class AppController {
     });
     this.enterPresence(nextPlayer, true);
     this.store.pushLog(`${nextLocation.subLocation}(으)로 이동했습니다.`);
-    await this.maybeOpenLocationDialogue(locationKey);
+    this.syncLocationStoryState(locationKey);
     await this.savePlayer();
+  }
+
+  private openCurrentLocationStory(): void {
+    const state = this.store.getState();
+    if (!state.player || state.battle || state.dialogue) {
+      return;
+    }
+
+    const location = this.world.locations[state.player.locationKey];
+    if (!location) {
+      return;
+    }
+
+    const result = createLocationStoryDialogue(state.player, location);
+    if (state.player !== result.player) {
+      this.store.setState({ player: result.player });
+    }
+
+    if (!result.dialogue) {
+      return;
+    }
+
+    this.store.setState({
+      player: result.player,
+      dialogue: result.dialogue,
+      battleReport: null,
+    });
+    this.store.pushLog(`${result.dialogue.title} 시작`);
   }
 
   private openNpcDialogue(npc: DialogueNpc): void {
@@ -301,6 +344,7 @@ export class AppController {
 
     this.store.setState({
       dialogue: {
+        kind: "npc",
         title: npc.name,
         locationKey: state.player.locationKey,
         lines: npc.lines,
@@ -311,33 +355,23 @@ export class AppController {
     this.store.pushLog(`${npc.name}와(과) 대화를 시작합니다.`);
   }
 
-  private async maybeOpenLocationDialogue(locationKey: string): Promise<void> {
+  private syncLocationStoryState(locationKey: string): boolean {
     const state = this.store.getState();
     if (!state.player) {
-      return;
+      return false;
     }
 
-    const nextPlayer = ensureStoryState(state.player, locationKey);
     const location = this.world.locations[locationKey];
     if (!location) {
-      return;
-    }
-    const story = nextPlayer.storyState[locationKey];
-    if (state.player !== nextPlayer) {
-      this.store.setState({ player: nextPlayer });
+      return false;
     }
 
-    if (story && !story.completed && location.story.length > 0) {
-      this.store.setState({
-        dialogue: {
-          title: `${location.subLocation} 이야기`,
-          locationKey,
-          lines: location.story,
-          index: story.currentIndex,
-        },
-        battleReport: null,
-      });
+    const result = prepareLocationStory(state.player, location);
+    if (state.player !== result.player) {
+      this.store.setState({ player: result.player });
     }
+
+    return result.hasUnreadStory;
   }
 
   private async advanceDialogue(): Promise<void> {
@@ -346,33 +380,20 @@ export class AppController {
       return;
     }
 
-    if (state.dialogue.index < state.dialogue.lines.length - 1) {
-      this.store.setState({
-        dialogue: {
-          ...state.dialogue,
-          index: state.dialogue.index + 1,
-        },
-      });
+    const result = advanceDialogueProgress(state.player, state.dialogue);
+    this.store.setState({
+      player: result.player,
+      dialogue: result.dialogue,
+    });
+
+    if (result.dialogue) {
       return;
     }
 
-    const nextPlayer: PlayerSave = {
-      ...state.player,
-      storyState: {
-        ...state.player.storyState,
-        [state.dialogue.locationKey]: {
-          completed: true,
-          currentIndex: state.dialogue.lines.length - 1,
-        },
-      },
-    };
-
-    this.store.setState({
-      player: nextPlayer,
-      dialogue: null,
-    });
     this.store.pushLog(`${state.dialogue.title} 대화 종료`);
-    await this.savePlayer();
+    if (result.completedLocationStory) {
+      await this.savePlayer();
+    }
   }
 
   private async startEncounter(zone: EncounterZone): Promise<void> {
@@ -408,6 +429,7 @@ export class AppController {
       tactics: this.tacticMap,
       equipment: this.equipmentMap,
       enemies: this.world.enemies,
+      world: this.world,
     });
 
     const previousPlayer = state.player;
@@ -441,7 +463,7 @@ export class AppController {
     resolution.logs.slice(-4).forEach((entry) => this.store.pushLog(entry));
     if (sceneChangedAfterBattle) {
       this.enterPresence(nextPlayer, true);
-      await this.maybeOpenLocationDialogue(nextPlayer.locationKey);
+      this.syncLocationStoryState(nextPlayer.locationKey);
     }
     await this.savePlayer();
   }
