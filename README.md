@@ -84,7 +84,7 @@ Create `apps/server/.env`:
 ```dotenv
 NODE_ENV=development
 PORT=4000
-CLIENT_ORIGIN=http://localhost:5173
+CLIENT_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
 JWT_SECRET=replace-this-with-a-real-32-character-secret
 JWT_EXPIRES_IN=7d
 BCRYPT_SALT_ROUNDS=10

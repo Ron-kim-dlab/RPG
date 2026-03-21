@@ -6,6 +6,7 @@ import type {
   SkillDefinition,
   TacticDefinition,
 } from "@rpg/game-core";
+import { AUTH_PASSWORD_MIN_LENGTH, AUTH_USERNAME_MIN_LENGTH } from "../auth";
 import type { AppState } from "../state/store";
 
 type UiCallbacks = {
@@ -106,12 +107,20 @@ export class DomUi {
         <form class="auth-form">
           <label>
             아이디
-            <input name="username" autocomplete="username" ${disabled} />
+            <input name="username" autocomplete="username" minlength="${AUTH_USERNAME_MIN_LENGTH}" required ${disabled} />
           </label>
           <label>
             비밀번호
-            <input type="password" name="password" autocomplete="current-password" ${disabled} />
+            <input
+              type="password"
+              name="password"
+              autocomplete="${state.authMode === "login" ? "current-password" : "new-password"}"
+              minlength="${AUTH_PASSWORD_MIN_LENGTH}"
+              required
+              ${disabled}
+            />
           </label>
+          <p class="panel-note">아이디는 ${AUTH_USERNAME_MIN_LENGTH}자 이상, 비밀번호는 ${AUTH_PASSWORD_MIN_LENGTH}자 이상이어야 합니다.</p>
           <button type="submit" class="primary" ${disabled}>
             ${state.pending ? "처리 중..." : state.authMode === "login" ? "접속하기" : "모험 시작"}
           </button>
