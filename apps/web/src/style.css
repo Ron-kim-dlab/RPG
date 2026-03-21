@@ -122,6 +122,14 @@ button {
   backdrop-filter: blur(16px);
 }
 
+.layout-panel {
+  position: absolute;
+}
+
+.layout-panel.is-dragging {
+  user-select: none;
+}
+
 .hud-panel {
   position: absolute;
   top: 18px;
@@ -586,6 +594,31 @@ button {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
+}
+
+@media (min-width: 921px) {
+  .layout-panel.floating-enabled {
+    min-width: var(--panel-min-width, 280px);
+    min-height: var(--panel-min-height, 160px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    resize: both;
+    cursor: grab;
+  }
+
+  .layout-panel.floating-enabled.is-dragging {
+    cursor: grabbing;
+  }
+
+  .layout-panel.floating-enabled button,
+  .layout-panel.floating-enabled [role="button"] {
+    cursor: pointer;
+  }
+
+  .layout-panel.floating-enabled input,
+  .layout-panel.floating-enabled textarea {
+    cursor: text;
+  }
 }
 
 @media (max-width: 1180px) {

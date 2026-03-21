@@ -8,6 +8,15 @@ import type {
 } from "@rpg/game-core";
 import { AUTH_PASSWORD_MIN_LENGTH, AUTH_USERNAME_MIN_LENGTH } from "../auth";
 import type { AppState } from "../state/store";
+import {
+  clampFloatingPanelLayout,
+  FLOATING_LAYOUT_STORAGE_KEY,
+  FLOATING_PANEL_CONSTRAINTS,
+  isFloatingLayoutEnabled,
+  sanitizeStoredLayouts,
+  type FloatingPanelKey,
+  type FloatingPanelLayout,
+} from "./layout";
 
 type UiCallbacks = {
   onAuthSubmit: (mode: "login" | "register", username: string, password: string) => void;
@@ -22,9 +31,24 @@ type UiCallbacks = {
   onSendChat: (text: string) => void;
 };
 
+type LayoutGesture =
+  | {
+    key: FloatingPanelKey;
+    pointerId: number;
+    mode: "move";
+    offsetX: number;
+    offsetY: number;
+  }
+  | {
+    key: FloatingPanelKey;
+    pointerId: number;
+    mode: "resize";
+  };
+
 export class DomUi {
   private readonly root: HTMLElement;
   private readonly appShell: HTMLElement;
+  private readonly uiLayer: HTMLElement;
   private readonly authPanel: HTMLElement;
   private readonly hudPanel: HTMLElement;
   private readonly actionPanel: HTMLElement;
@@ -32,6 +56,15 @@ export class DomUi {
   private readonly battlePanel: HTMLElement;
   private readonly chatPanel: HTMLElement;
   private readonly logPanel: HTMLElement;
+  private readonly floatingPanels: Record<FloatingPanelKey, HTMLElement>;
+  private panelLayouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>> = {};
+  private nextPanelZ = 20;
+  private activeGesture: LayoutGesture | null = null;
+  private readonly handlePointerMove = (event: PointerEvent) => this.onPointerMove(event);
+  private readonly handlePointerUp = (event: PointerEvent) => this.onPointerUp(event);
+  private readonly handleViewportResize = () => {
+    window.requestAnimationFrame(() => this.refreshFloatingLayouts());
+  };
 
   constructor(root: HTMLElement, private readonly callbacks: UiCallbacks) {
     this.root = root;
@@ -55,6 +88,7 @@ export class DomUi {
     `;
 
     this.appShell = this.root.querySelector(".stage-canvas") as HTMLElement;
+    this.uiLayer = this.root.querySelector(".ui-layer") as HTMLElement;
     this.authPanel = this.root.querySelector(".auth-panel") as HTMLElement;
     this.hudPanel = this.root.querySelector(".hud-panel") as HTMLElement;
     this.actionPanel = this.root.querySelector(".action-panel") as HTMLElement;
@@ -62,10 +96,297 @@ export class DomUi {
     this.battlePanel = this.root.querySelector(".battle-panel") as HTMLElement;
     this.chatPanel = this.root.querySelector(".chat-panel") as HTMLElement;
     this.logPanel = this.root.querySelector(".log-panel") as HTMLElement;
+    this.floatingPanels = {
+      hud: this.hudPanel,
+      log: this.logPanel,
+      chat: this.chatPanel,
+      action: this.actionPanel,
+      dialogue: this.dialoguePanel,
+      battle: this.battlePanel,
+    };
+
+    this.panelLayouts = this.loadStoredLayouts();
+    this.nextPanelZ = this.computeNextPanelZ();
+    this.initializeFloatingPanels();
   }
 
   getGameContainer(): HTMLElement {
     return this.appShell;
+  }
+
+  private initializeFloatingPanels(): void {
+    Object.entries(this.floatingPanels).forEach(([key, panel]) => {
+      const panelKey = key as FloatingPanelKey;
+      const constraint = FLOATING_PANEL_CONSTRAINTS[panelKey];
+      panel.dataset.panelKey = panelKey;
+      panel.classList.add("layout-panel");
+      panel.style.setProperty("--panel-min-width", `${constraint.minWidth}px`);
+      panel.style.setProperty("--panel-min-height", `${constraint.minHeight}px`);
+      panel.addEventListener("pointerdown", (event) => this.onPanelPointerDown(panelKey, event));
+    });
+
+    window.addEventListener("pointermove", this.handlePointerMove);
+    window.addEventListener("pointerup", this.handlePointerUp);
+    window.addEventListener("pointercancel", this.handlePointerUp);
+    window.addEventListener("resize", this.handleViewportResize);
+    window.requestAnimationFrame(() => this.refreshFloatingLayouts());
+  }
+
+  private loadStoredLayouts(): Partial<Record<FloatingPanelKey, FloatingPanelLayout>> {
+    if (typeof window === "undefined") {
+      return {};
+    }
+
+    try {
+      const raw = window.localStorage.getItem(FLOATING_LAYOUT_STORAGE_KEY);
+      if (!raw) {
+        return {};
+      }
+      return sanitizeStoredLayouts(JSON.parse(raw));
+    } catch {
+      return {};
+    }
+  }
+
+  private persistLayouts(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(FLOATING_LAYOUT_STORAGE_KEY, JSON.stringify(this.panelLayouts));
+  }
+
+  private computeNextPanelZ(): number {
+    const maxZ = Object.values(this.panelLayouts).reduce((current, layout) => Math.max(current, layout?.z ?? 0), 19);
+    return maxZ + 1;
+  }
+
+  private isFloatingLayoutActive(): boolean {
+    return typeof window !== "undefined" && isFloatingLayoutEnabled(window.innerWidth);
+  }
+
+  private measurePanelLayout(key: FloatingPanelKey): FloatingPanelLayout | null {
+    const panel = this.floatingPanels[key];
+    const panelRect = panel.getBoundingClientRect();
+    const containerRect = this.uiLayer.getBoundingClientRect();
+    if (panelRect.width === 0 || panelRect.height === 0 || containerRect.width === 0 || containerRect.height === 0) {
+      return null;
+    }
+
+    return {
+      x: panelRect.left - containerRect.left,
+      y: panelRect.top - containerRect.top,
+      width: panelRect.width,
+      height: panelRect.height,
+      z: this.panelLayouts[key]?.z ?? this.nextPanelZ,
+    };
+  }
+
+  private ensureMeasuredLayout(key: FloatingPanelKey): FloatingPanelLayout | null {
+    const current = this.panelLayouts[key];
+    if (current) {
+      return current;
+    }
+
+    const measured = this.measurePanelLayout(key);
+    if (!measured) {
+      return null;
+    }
+
+    const clamped = this.clampLayout(key, measured);
+    this.panelLayouts[key] = clamped;
+    this.applyLayout(key, clamped);
+    return clamped;
+  }
+
+  private clampLayout(key: FloatingPanelKey, layout: FloatingPanelLayout): FloatingPanelLayout {
+    return clampFloatingPanelLayout(key, layout, {
+      width: this.uiLayer.clientWidth,
+      height: this.uiLayer.clientHeight,
+    });
+  }
+
+  private applyLayout(key: FloatingPanelKey, layout: FloatingPanelLayout): void {
+    const panel = this.floatingPanels[key];
+    panel.style.top = `${layout.y}px`;
+    panel.style.left = `${layout.x}px`;
+    panel.style.width = `${layout.width}px`;
+    panel.style.height = `${layout.height}px`;
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.style.inset = "auto";
+    panel.style.zIndex = String(layout.z);
+  }
+
+  private clearLayoutStyles(panel: HTMLElement): void {
+    panel.style.top = "";
+    panel.style.left = "";
+    panel.style.width = "";
+    panel.style.height = "";
+    panel.style.right = "";
+    panel.style.bottom = "";
+    panel.style.inset = "";
+    panel.style.zIndex = "";
+  }
+
+  private refreshFloatingLayouts(): void {
+    const enabled = this.isFloatingLayoutActive();
+    Object.values(this.floatingPanels).forEach((panel) => {
+      panel.classList.toggle("floating-enabled", enabled);
+    });
+
+    if (!enabled) {
+      this.activeGesture = null;
+      Object.values(this.floatingPanels).forEach((panel) => {
+        panel.classList.remove("is-dragging", "is-resizing");
+        this.clearLayoutStyles(panel);
+      });
+      return;
+    }
+
+    let didChange = false;
+    (Object.entries(this.panelLayouts) as Array<[FloatingPanelKey, FloatingPanelLayout]>).forEach(([key, layout]) => {
+      const clamped = this.clampLayout(key, layout);
+      this.panelLayouts[key] = clamped;
+      this.applyLayout(key, clamped);
+      didChange = didChange || JSON.stringify(clamped) !== JSON.stringify(layout);
+    });
+    if (didChange) {
+      this.persistLayouts();
+    }
+  }
+
+  private bringPanelToFront(key: FloatingPanelKey): void {
+    const layout = this.ensureMeasuredLayout(key);
+    if (!layout) {
+      return;
+    }
+
+    const next = {
+      ...layout,
+      z: this.nextPanelZ,
+    };
+    this.nextPanelZ += 1;
+    this.panelLayouts[key] = next;
+    this.applyLayout(key, next);
+    this.persistLayouts();
+  }
+
+  private isInteractiveTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+
+    return Boolean(target.closest("button, input, textarea, select, option, label, a, [contenteditable='true'], [data-no-panel-drag]"));
+  }
+
+  private isResizeCorner(panel: HTMLElement, event: PointerEvent): boolean {
+    const rect = panel.getBoundingClientRect();
+    return rect.right - event.clientX <= 22 && rect.bottom - event.clientY <= 22;
+  }
+
+  private onPanelPointerDown(key: FloatingPanelKey, event: PointerEvent): void {
+    if (!this.isFloatingLayoutActive()) {
+      return;
+    }
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const panel = this.floatingPanels[key];
+    if (this.isInteractiveTarget(event.target)) {
+      return;
+    }
+
+    const measured = this.ensureMeasuredLayout(key);
+    if (!measured) {
+      return;
+    }
+
+    this.bringPanelToFront(key);
+
+    if (this.isResizeCorner(panel, event)) {
+      this.activeGesture = {
+        key,
+        pointerId: event.pointerId,
+        mode: "resize",
+      };
+      panel.classList.add("is-resizing");
+      return;
+    }
+
+    const panelRect = panel.getBoundingClientRect();
+    const dragZoneHeight = 58;
+    if (event.clientY - panelRect.top > dragZoneHeight) {
+      return;
+    }
+
+    this.activeGesture = {
+      key,
+      pointerId: event.pointerId,
+      mode: "move",
+      offsetX: event.clientX - panelRect.left,
+      offsetY: event.clientY - panelRect.top,
+    };
+    panel.classList.add("is-dragging");
+    panel.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  private onPointerMove(event: PointerEvent): void {
+    if (!this.activeGesture || this.activeGesture.mode !== "move" || event.pointerId !== this.activeGesture.pointerId || !this.isFloatingLayoutActive()) {
+      return;
+    }
+
+    const layout = this.panelLayouts[this.activeGesture.key];
+    if (!layout) {
+      return;
+    }
+
+    const containerRect = this.uiLayer.getBoundingClientRect();
+    const next = this.clampLayout(this.activeGesture.key, {
+      ...layout,
+      x: event.clientX - containerRect.left - this.activeGesture.offsetX,
+      y: event.clientY - containerRect.top - this.activeGesture.offsetY,
+    });
+    this.panelLayouts[this.activeGesture.key] = next;
+    this.applyLayout(this.activeGesture.key, next);
+    event.preventDefault();
+  }
+
+  private onPointerUp(event: PointerEvent): void {
+    if (!this.activeGesture || event.pointerId !== this.activeGesture.pointerId) {
+      return;
+    }
+
+    const { key } = this.activeGesture;
+    const panel = this.floatingPanels[key];
+    panel.classList.remove("is-dragging", "is-resizing");
+    panel.releasePointerCapture?.(event.pointerId);
+
+    if (this.isFloatingLayoutActive()) {
+      const measured = this.measurePanelLayout(key);
+      if (measured) {
+        const clamped = this.clampLayout(key, {
+          ...measured,
+          z: this.panelLayouts[key]?.z ?? measured.z,
+        });
+        this.panelLayouts[key] = clamped;
+        this.applyLayout(key, clamped);
+        this.persistLayouts();
+      }
+    }
+
+    this.activeGesture = null;
+  }
+
+  private resetFloatingLayouts(): void {
+    this.panelLayouts = {};
+    this.nextPanelZ = 20;
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(FLOATING_LAYOUT_STORAGE_KEY);
+    }
+    this.refreshFloatingLayouts();
   }
 
   render(
@@ -160,12 +481,14 @@ export class DomUi {
         <div class="hud-meta">
           <span class="status-pill ${state.connectionStatus}">${state.connectionStatus}</span>
           <span class="status-pill mode-pill mode-${overlayMode}">${overlayMode}</span>
+          <button class="ghost" data-reset-layout ${state.player ? "" : "disabled"}>배치 초기화</button>
           <button class="ghost" data-save ${state.player ? "" : "disabled"}>저장</button>
         </div>
       </div>
       <div class="meter-grid">
         ${state.player ? this.renderPlayerMeters(state.player, nearbyPlayers.length) : this.renderLoadingMeters(state)}
       </div>
+      ${state.player ? `<p class="panel-note">데스크톱에서는 패널 상단을 끌어 이동하고, 오른쪽 아래를 끌어 크기를 조절할 수 있습니다.</p>` : ""}
       ${prompt ? `
         <div class="context-card ${prompt.tone}">
           <div>
@@ -181,6 +504,10 @@ export class DomUi {
     const saveButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-save]");
     if (saveButton) {
       saveButton.onclick = () => this.callbacks.onSave();
+    }
+    const resetLayoutButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-reset-layout]");
+    if (resetLayoutButton) {
+      resetLayoutButton.onclick = () => this.resetFloatingLayouts();
     }
   }
 
