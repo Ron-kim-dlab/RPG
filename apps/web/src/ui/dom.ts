@@ -10,6 +10,7 @@ import { AUTH_PASSWORD_MIN_LENGTH, AUTH_USERNAME_MIN_LENGTH } from "../auth";
 import type { AppState } from "../state/store";
 import {
   clampFloatingPanelLayout,
+  cloneFloatingLayouts,
   FLOATING_LAYOUT_STORAGE_KEY,
   FLOATING_PANEL_CONSTRAINTS,
   isFloatingLayoutEnabled,
@@ -58,6 +59,7 @@ export class DomUi {
   private readonly logPanel: HTMLElement;
   private readonly floatingPanels: Record<FloatingPanelKey, HTMLElement>;
   private panelLayouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>> = {};
+  private savedPanelLayouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>> = {};
   private nextPanelZ = 20;
   private activeGesture: LayoutGesture | null = null;
   private readonly handlePointerMove = (event: PointerEvent) => this.onPointerMove(event);
@@ -105,7 +107,8 @@ export class DomUi {
       battle: this.battlePanel,
     };
 
-    this.panelLayouts = this.loadStoredLayouts();
+    this.savedPanelLayouts = this.loadStoredLayouts();
+    this.panelLayouts = cloneFloatingLayouts(this.savedPanelLayouts);
     this.nextPanelZ = this.computeNextPanelZ();
     this.initializeFloatingPanels();
   }
@@ -153,7 +156,7 @@ export class DomUi {
       return;
     }
 
-    window.localStorage.setItem(FLOATING_LAYOUT_STORAGE_KEY, JSON.stringify(this.panelLayouts));
+    window.localStorage.setItem(FLOATING_LAYOUT_STORAGE_KEY, JSON.stringify(this.savedPanelLayouts));
   }
 
   private computeNextPanelZ(): number {
@@ -199,6 +202,24 @@ export class DomUi {
     return clamped;
   }
 
+  private snapshotVisibleLayouts(): void {
+    (Object.keys(this.floatingPanels) as FloatingPanelKey[]).forEach((key) => {
+      const panel = this.floatingPanels[key];
+      if (!panel.classList.contains("visible") && key !== "hud" && key !== "chat" && key !== "log") {
+        return;
+      }
+
+      const measured = this.measurePanelLayout(key);
+      if (!measured) {
+        return;
+      }
+
+      const clamped = this.clampLayout(key, measured);
+      this.panelLayouts[key] = clamped;
+      this.applyLayout(key, clamped);
+    });
+  }
+
   private clampLayout(key: FloatingPanelKey, layout: FloatingPanelLayout): FloatingPanelLayout {
     return clampFloatingPanelLayout(key, layout, {
       width: this.uiLayer.clientWidth,
@@ -208,13 +229,13 @@ export class DomUi {
 
   private applyLayout(key: FloatingPanelKey, layout: FloatingPanelLayout): void {
     const panel = this.floatingPanels[key];
+    panel.style.inset = "";
     panel.style.top = `${layout.y}px`;
     panel.style.left = `${layout.x}px`;
     panel.style.width = `${layout.width}px`;
     panel.style.height = `${layout.height}px`;
     panel.style.right = "auto";
     panel.style.bottom = "auto";
-    panel.style.inset = "auto";
     panel.style.zIndex = String(layout.z);
   }
 
@@ -227,6 +248,10 @@ export class DomUi {
     panel.style.bottom = "";
     panel.style.inset = "";
     panel.style.zIndex = "";
+  }
+
+  private restoreDefaultFloatingLayouts(): void {
+    Object.values(this.floatingPanels).forEach((panel) => this.clearLayoutStyles(panel));
   }
 
   private refreshFloatingLayouts(): void {
@@ -252,7 +277,7 @@ export class DomUi {
       didChange = didChange || JSON.stringify(clamped) !== JSON.stringify(layout);
     });
     if (didChange) {
-      this.persistLayouts();
+      this.panelLayouts = cloneFloatingLayouts(this.panelLayouts);
     }
   }
 
@@ -269,7 +294,6 @@ export class DomUi {
     this.nextPanelZ += 1;
     this.panelLayouts[key] = next;
     this.applyLayout(key, next);
-    this.persistLayouts();
   }
 
   private isInteractiveTarget(target: EventTarget | null): boolean {
@@ -373,19 +397,42 @@ export class DomUi {
         });
         this.panelLayouts[key] = clamped;
         this.applyLayout(key, clamped);
-        this.persistLayouts();
       }
     }
 
     this.activeGesture = null;
   }
 
+  private saveFloatingLayouts(): void {
+    if (!this.isFloatingLayoutActive()) {
+      return;
+    }
+
+    this.snapshotVisibleLayouts();
+    const nextLayouts = cloneFloatingLayouts(this.panelLayouts);
+    this.savedPanelLayouts = nextLayouts;
+    this.persistLayouts();
+  }
+
+  private loadFloatingLayouts(): void {
+    const stored = this.loadStoredLayouts();
+    this.savedPanelLayouts = stored;
+    this.panelLayouts = cloneFloatingLayouts(stored);
+    this.nextPanelZ = this.computeNextPanelZ();
+    if (Object.keys(this.panelLayouts).length === 0) {
+      this.restoreDefaultFloatingLayouts();
+    }
+    this.refreshFloatingLayouts();
+  }
+
   private resetFloatingLayouts(): void {
     this.panelLayouts = {};
+    this.savedPanelLayouts = {};
     this.nextPanelZ = 20;
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(FLOATING_LAYOUT_STORAGE_KEY);
     }
+    this.restoreDefaultFloatingLayouts();
     this.refreshFloatingLayouts();
   }
 
@@ -481,14 +528,18 @@ export class DomUi {
         <div class="hud-meta">
           <span class="status-pill ${state.connectionStatus}">${state.connectionStatus}</span>
           <span class="status-pill mode-pill mode-${overlayMode}">${overlayMode}</span>
-          <button class="ghost" data-reset-layout ${state.player ? "" : "disabled"}>배치 초기화</button>
-          <button class="ghost" data-save ${state.player ? "" : "disabled"}>저장</button>
+          <div class="layout-actions" data-no-panel-drag>
+            <button class="ghost" data-layout-save ${state.player ? "" : "disabled"}>UI 저장</button>
+            <button class="ghost" data-layout-load ${state.player ? "" : "disabled"}>UI 불러오기</button>
+            <button class="ghost" data-reset-layout ${state.player ? "" : "disabled"}>UI 초기화</button>
+          </div>
+          <button class="ghost" data-save ${state.player ? "" : "disabled"}>게임 저장</button>
         </div>
       </div>
       <div class="meter-grid">
         ${state.player ? this.renderPlayerMeters(state.player, nearbyPlayers.length) : this.renderLoadingMeters(state)}
       </div>
-      ${state.player ? `<p class="panel-note">데스크톱에서는 패널 상단을 끌어 이동하고, 오른쪽 아래를 끌어 크기를 조절할 수 있습니다.</p>` : ""}
+      ${state.player ? `<p class="panel-note">데스크톱에서는 패널 상단을 끌어 이동하고, 오른쪽 아래를 끌어 크기를 조절할 수 있습니다. 원하는 배치는 UI 저장으로 보관하고, UI 불러오기로 다시 복원할 수 있습니다.</p>` : ""}
       ${prompt ? `
         <div class="context-card ${prompt.tone}">
           <div>
@@ -504,6 +555,14 @@ export class DomUi {
     const saveButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-save]");
     if (saveButton) {
       saveButton.onclick = () => this.callbacks.onSave();
+    }
+    const layoutSaveButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-layout-save]");
+    if (layoutSaveButton) {
+      layoutSaveButton.onclick = () => this.saveFloatingLayouts();
+    }
+    const layoutLoadButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-layout-load]");
+    if (layoutLoadButton) {
+      layoutLoadButton.onclick = () => this.loadFloatingLayouts();
     }
     const resetLayoutButton = this.hudPanel.querySelector<HTMLButtonElement>("[data-reset-layout]");
     if (resetLayoutButton) {

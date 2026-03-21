@@ -259,6 +259,13 @@ button {
   gap: 10px;
 }
 
+.layout-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .status-pill,
 .pill {
   display: inline-flex;

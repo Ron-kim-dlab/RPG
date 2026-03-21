@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clampFloatingPanelLayout,
+  cloneFloatingLayouts,
   isFloatingLayoutEnabled,
   sanitizeStoredLayouts,
 } from "../src/ui/layout";
@@ -56,5 +57,21 @@ describe("floating panel layout helpers", () => {
       height: 600,
       z: 1,
     });
+  });
+
+  it("clones layout records without sharing object references", () => {
+    const original = {
+      hud: {
+        x: 18,
+        y: 18,
+        width: 800,
+        height: 220,
+        z: 2,
+      },
+    };
+
+    const cloned = cloneFloatingLayouts(original);
+    expect(cloned).toEqual(original);
+    expect(cloned.hud).not.toBe(original.hud);
   });
 });

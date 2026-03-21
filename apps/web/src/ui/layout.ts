@@ -72,6 +72,14 @@ export function sanitizeStoredLayouts(value: unknown): Partial<Record<FloatingPa
   return output;
 }
 
+export function cloneFloatingLayouts(
+  layouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>>,
+): Partial<Record<FloatingPanelKey, FloatingPanelLayout>> {
+  return Object.fromEntries(
+    Object.entries(layouts).map(([key, layout]) => [key, layout ? { ...layout } : layout]),
+  ) as Partial<Record<FloatingPanelKey, FloatingPanelLayout>>;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
