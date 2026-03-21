@@ -356,6 +356,10 @@ export class DomUi {
 
   private renderChat(state: AppState): void {
     const nearbyPlayers = state.presence.filter((entry) => entry.username !== state.player?.username);
+    const canChat = Boolean(state.player && state.connectionStatus === "online");
+    const chatPlaceholder = state.connectionStatus === "online"
+      ? "같은 씬의 유저에게 말하기"
+      : "연결 복구 후 채팅 가능";
 
     this.chatPanel.innerHTML = `
       <div class="panel-header">
@@ -372,11 +376,11 @@ export class DomUi {
         ${state.chatMessages
           .slice(-8)
           .map((message) => `<div class="chat-item"><strong>${message.username}</strong><span>${message.text}</span></div>`)
-          .join("") || `<p class="panel-note">같은 씬의 유저에게 말을 걸 수 있습니다.</p>`}
+          .join("") || `<p class="panel-note">${state.connectionStatus === "online" ? "같은 씬의 유저에게 말을 걸 수 있습니다." : "실시간 연결이 복구되면 채팅이 다시 활성화됩니다."}</p>`}
       </div>
       <form class="chat-form">
-        <input name="text" placeholder="같은 씬의 유저에게 말하기" ${state.player ? "" : "disabled"} />
-        <button type="submit" class="primary" ${state.player ? "" : "disabled"}>전송</button>
+        <input name="text" placeholder="${chatPlaceholder}" ${canChat ? "" : "disabled"} />
+        <button type="submit" class="primary" ${canChat ? "" : "disabled"}>전송</button>
       </form>
     `;
     const form = this.chatPanel.querySelector(".chat-form") as HTMLFormElement;

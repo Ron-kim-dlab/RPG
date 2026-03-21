@@ -9,6 +9,10 @@ type AuthenticatedSocketData = {
   sceneId?: string;
 };
 
+type PresenceEntry = PresenceState & {
+  socketId: string;
+};
+
 function colorFromUsername(username: string): string {
   const palette = ["#f25f5c", "#247ba0", "#70c1b3", "#ffe066", "#50514f", "#f79d65"];
   const index = Array.from(username).reduce((acc, char) => acc + char.charCodeAt(0), 0) % palette.length;
@@ -16,7 +20,18 @@ function colorFromUsername(username: string): string {
 }
 
 export function configureRealtime(io: Server, env: ServerEnv): void {
-  const presenceByScene = new Map<string, Map<string, PresenceState>>();
+  const presenceByScene = new Map<string, Map<string, PresenceEntry>>();
+
+  const serializeRoom = (room: Map<string, PresenceEntry>): PresenceState[] =>
+    Array.from(room.values()).map((entry) => ({
+      username: entry.username,
+      sceneId: entry.sceneId,
+      x: entry.x,
+      y: entry.y,
+      facing: entry.facing,
+      color: entry.color,
+      updatedAt: entry.updatedAt,
+    }));
 
   io.use((socket, next) => {
     const token = String(socket.handshake.auth.token ?? "");
@@ -47,10 +62,13 @@ export function configureRealtime(io: Server, env: ServerEnv): void {
       socket.leave(currentScene);
       const room = presenceByScene.get(currentScene);
       if (room) {
-        room.delete(data.username);
-        socket.to(currentScene).emit("presence:left", data.username);
-        if (room.size === 0) {
-          presenceByScene.delete(currentScene);
+        const current = room.get(data.username);
+        if (current?.socketId === socket.id) {
+          room.delete(data.username);
+          socket.to(currentScene).emit("presence:left", data.username);
+          if (room.size === 0) {
+            presenceByScene.delete(currentScene);
+          }
         }
       }
       data.sceneId = undefined;
@@ -71,12 +89,16 @@ export function configureRealtime(io: Server, env: ServerEnv): void {
         updatedAt: new Date().toISOString(),
       };
 
-      const room = presenceByScene.get(sceneId) ?? new Map<string, PresenceState>();
-      room.set(data.username, state);
+      const room = presenceByScene.get(sceneId) ?? new Map<string, PresenceEntry>();
+      const hadExisting = room.has(data.username);
+      room.set(data.username, {
+        ...state,
+        socketId: socket.id,
+      });
       presenceByScene.set(sceneId, room);
 
-      socket.emit("presence:snapshot", Array.from(room.values()));
-      socket.to(sceneId).emit("presence:update", state);
+      socket.emit("presence:snapshot", serializeRoom(room));
+      socket.to(sceneId).emit(hadExisting ? "presence:update" : "presence:joined", state);
     };
 
     socket.on("presence:join", (payload: { sceneId: string; x: number; y: number; facing: Facing }) => {
@@ -93,16 +115,25 @@ export function configureRealtime(io: Server, env: ServerEnv): void {
       }
       const room = presenceByScene.get(data.sceneId);
       const current = room?.get(data.username);
-      if (!room || !current) {
+      if (!room || !current || current.socketId !== socket.id) {
         return;
       }
-      const next: PresenceState = {
+      const next: PresenceEntry = {
         ...current,
         ...payload,
         updatedAt: new Date().toISOString(),
+        socketId: socket.id,
       };
       room.set(data.username, next);
-      socket.to(data.sceneId).emit("presence:update", next);
+      socket.to(data.sceneId).emit("presence:update", {
+        username: next.username,
+        sceneId: next.sceneId,
+        x: next.x,
+        y: next.y,
+        facing: next.facing,
+        color: next.color,
+        updatedAt: next.updatedAt,
+      } satisfies PresenceState);
     });
 
     socket.on("chat:send", (payload: { text: string }) => {
