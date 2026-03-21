@@ -19,6 +19,7 @@ import {
   performBattleAction,
   pickRandom,
 } from "@rpg/game-core";
+import { createBattleReport, deriveOverlayMode, didSceneChange } from "./gameplay";
 import { ApiClient } from "./net/api";
 import { PresenceClient } from "./net/socket";
 import { GameBridge } from "./game/GameBridge";
@@ -34,6 +35,33 @@ export class AppController {
   private readonly game: GameBridge;
   private readonly presence: PresenceClient;
   private lastSavedAt = 0;
+  private readonly handleGlobalKeydown = (event: KeyboardEvent) => {
+    if (this.isTextEntryTarget(event.target)) {
+      return;
+    }
+
+    const state = this.store.getState();
+    if (state.dialogue && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      void this.advanceDialogue();
+      return;
+    }
+
+    if (!state.battle) {
+      return;
+    }
+
+    if (event.key === "1") {
+      event.preventDefault();
+      void this.performAction({ kind: "attack" });
+    } else if (event.key === "2") {
+      event.preventDefault();
+      void this.performAction({ kind: "normal" });
+    } else if (event.key === "3") {
+      event.preventDefault();
+      void this.performAction({ kind: "defend" });
+    }
+  };
 
   constructor(root: HTMLElement) {
     this.ui = new DomUi(root, {
@@ -70,6 +98,7 @@ export class AppController {
         const state = this.store.getState();
         return Boolean(state.player && !state.battle && !state.dialogue);
       },
+      getOverlayMode: () => deriveOverlayMode(this.store.getState()),
       onPositionChange: (x, y, facing) => this.updatePosition(x, y, facing),
       onSceneChange: (locationKey) => {
         void this.changeLocation(locationKey);
@@ -78,6 +107,7 @@ export class AppController {
       onEncounter: (zone) => {
         void this.startEncounter(zone);
       },
+      onFieldPromptChange: (prompt) => this.store.setState({ fieldPrompt: prompt }),
     });
 
     this.presence = new PresenceClient(import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000", {
@@ -96,9 +126,9 @@ export class AppController {
 
     this.store.subscribe((state) => {
       const currentLocation = state.player && state.world ? state.world.locations[state.player.locationKey] ?? null : null;
-      const equipmentMap = this.equipmentMap;
-      const skillMap = this.skillMap;
-      const tacticMap = this.tacticMap;
+      const equipmentMap: Record<string, EquipmentDefinition> = state.world ? this.equipmentMap : {};
+      const skillMap: Record<string, SkillDefinition> = state.world ? this.skillMap : {};
+      const tacticMap: Record<string, TacticDefinition> = state.world ? this.tacticMap : {};
       const equipmentForLocation = currentLocation
         ? currentLocation.subLocation === "무기 상점"
           ? Object.values(equipmentMap).filter((item) => item.village === currentLocation.mainLocation)
@@ -122,6 +152,8 @@ export class AppController {
       this.ui.render(state, currentLocation, equipmentForLocation, skillsForLocation, equipped, learnedSkills, learnedTactics);
       this.game.sync(state.world, state.player, state.presence);
     });
+
+    window.addEventListener("keydown", this.handleGlobalKeydown);
   }
 
   async start(): Promise<void> {
@@ -134,7 +166,7 @@ export class AppController {
       if (token) {
         try {
           const player = await this.api.me(token);
-          this.store.setState({ token, player, pending: false });
+          this.store.setState({ token, player, pending: false, battleReport: null });
           this.presence.connect(token);
           this.enterPresence(player, false);
           await this.maybeOpenLocationDialogue(player.locationKey);
@@ -184,6 +216,7 @@ export class AppController {
         token: session.token,
         player: session.player,
         battle: null,
+        battleReport: null,
         dialogue: null,
         chatMessages: [],
         presence: [],
@@ -238,6 +271,7 @@ export class AppController {
 
     this.store.setState({
       player: nextPlayer,
+      battleReport: null,
       presence: [],
       chatMessages: [],
     });
@@ -260,7 +294,9 @@ export class AppController {
         lines: npc.lines,
         index: 0,
       },
+      battleReport: null,
     });
+    this.store.pushLog(`${npc.name}와(과) 대화를 시작합니다.`);
   }
 
   private async maybeOpenLocationDialogue(locationKey: string): Promise<void> {
@@ -287,6 +323,7 @@ export class AppController {
           lines: location.story,
           index: story.currentIndex,
         },
+        battleReport: null,
       });
     }
   }
@@ -322,6 +359,7 @@ export class AppController {
       player: nextPlayer,
       dialogue: null,
     });
+    this.store.pushLog(`${state.dialogue.title} 대화 종료`);
     await this.savePlayer();
   }
 
@@ -339,6 +377,7 @@ export class AppController {
 
     this.store.setState({
       battle: createBattle(state.player, enemy),
+      battleReport: null,
     });
     this.store.pushLog(`${enemy.name}과(와) 전투를 시작합니다.`);
   }
@@ -359,6 +398,7 @@ export class AppController {
       enemies: this.world.enemies,
     });
 
+    const previousPlayer = state.player;
     let nextPlayer = resolution.player;
     if (resolution.state.finished && resolution.state.outcome === "player_win") {
       const bossName = this.currentLocation?.bossName;
@@ -373,11 +413,24 @@ export class AppController {
       }
     }
 
+    const sceneChangedAfterBattle = didSceneChange(this.world, previousPlayer, nextPlayer);
+    const battleReport = createBattleReport({
+      ...resolution,
+      player: nextPlayer,
+    });
+
     this.store.setState({
       player: nextPlayer,
       battle: resolution.state.finished ? null : resolution.state,
+      battleReport,
+      chatMessages: sceneChangedAfterBattle ? [] : state.chatMessages,
+      presence: sceneChangedAfterBattle ? [] : state.presence,
     });
     resolution.logs.slice(-4).forEach((entry) => this.store.pushLog(entry));
+    if (sceneChangedAfterBattle) {
+      this.enterPresence(nextPlayer, true);
+      await this.maybeOpenLocationDialogue(nextPlayer.locationKey);
+    }
     await this.savePlayer();
   }
 
@@ -528,6 +581,13 @@ export class AppController {
       ...state,
       presence: state.presence.filter((entry) => entry.username !== username),
     }));
+  }
+
+  private isTextEntryTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    return target.closest("input, textarea, [contenteditable='true']") !== null;
   }
 
   private applyEquipmentSelection(player: PlayerSave, equippedEquipmentIds: string[]): PlayerSave {

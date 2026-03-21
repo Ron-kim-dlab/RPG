@@ -8,13 +8,16 @@ import type {
   SceneDefinition,
   WorldContent,
 } from "@rpg/game-core";
+import type { FieldPrompt, OverlayMode } from "../gameplay";
 
 type SceneCallbacks = {
   canMove: () => boolean;
+  getOverlayMode: () => OverlayMode;
   onPositionChange: (x: number, y: number, facing: Facing) => void;
   onSceneChange: (locationKey: string) => void;
   onInteractNpc: (npc: DialogueNpc) => void;
   onEncounter: (zone: EncounterZone) => void;
+  onFieldPromptChange: (prompt: FieldPrompt) => void;
 };
 
 type TiledProperty = {
@@ -63,7 +66,11 @@ export class OverworldScene extends Phaser.Scene {
   private keySpace!: Phaser.Input.Keyboard.Key;
   private keyBattle!: Phaser.Input.Keyboard.Key;
   private hintText!: Phaser.GameObjects.Text;
+  private overlayShade!: Phaser.GameObjects.Rectangle;
+  private overlayText!: Phaser.GameObjects.Text;
   private lastPresenceSentAt = 0;
+  private lastBroadcastKey = "";
+  private lastPromptKey = "";
 
   constructor() {
     super("overworld");
@@ -145,30 +152,33 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    if (!this.playerState || !this.callbacks || !this.sceneDefinition || !this.playerSprite || !this.hintText) {
+    if (!this.playerState || !this.callbacks || !this.sceneDefinition || !this.playerSprite || !this.hintText || !this.overlayShade || !this.overlayText) {
       return;
     }
 
-    const canMove = this.callbacks.canMove();
-    const speed = canMove ? 160 : 0;
+    const overlayMode = this.callbacks.getOverlayMode();
+    const canExplore = overlayMode === "explore" && this.callbacks.canMove();
+    const speed = canExplore ? 160 : 0;
     let velocityX = 0;
     let velocityY = 0;
     let facing: Facing = this.playerState.facing;
 
-    if (this.cursorKeys.left.isDown || this.keyA.isDown) {
-      velocityX = -1;
-      facing = "left";
-    } else if (this.cursorKeys.right.isDown || this.keyD.isDown) {
-      velocityX = 1;
-      facing = "right";
-    }
+    if (canExplore) {
+      if (this.cursorKeys.left.isDown || this.keyA.isDown) {
+        velocityX = -1;
+        facing = "left";
+      } else if (this.cursorKeys.right.isDown || this.keyD.isDown) {
+        velocityX = 1;
+        facing = "right";
+      }
 
-    if (this.cursorKeys.up.isDown || this.keyW.isDown) {
-      velocityY = -1;
-      facing = "up";
-    } else if (this.cursorKeys.down.isDown || this.keyS.isDown) {
-      velocityY = 1;
-      facing = "down";
+      if (this.cursorKeys.up.isDown || this.keyW.isDown) {
+        velocityY = -1;
+        facing = "up";
+      } else if (this.cursorKeys.down.isDown || this.keyS.isDown) {
+        velocityY = 1;
+        facing = "down";
+      }
     }
 
     const distance = speed * (delta / 1000);
@@ -184,38 +194,43 @@ export class OverworldScene extends Phaser.Scene {
       facing,
     };
 
-    if (time - this.lastPresenceSentAt > 120) {
+    const broadcastKey = `${Math.round(nextX)}:${Math.round(nextY)}:${facing}`;
+    if (canExplore && time - this.lastPresenceSentAt > 120 && broadcastKey !== this.lastBroadcastKey) {
       this.callbacks.onPositionChange(nextX, nextY, facing);
       this.lastPresenceSentAt = time;
+      this.lastBroadcastKey = broadcastKey;
     }
 
-    let hint = `${this.sceneDefinition.sceneId}  |  이동: WASD / 화살표  |  상호작용: Space  |  전투: B  |  출구: Enter`;
-
-    this.portals.forEach((portal) => {
-      if (Phaser.Geom.Rectangle.Contains(portal.zone, nextX, nextY) && Phaser.Input.Keyboard.JustDown(this.keyEnter)) {
-        this.callbacks?.onSceneChange(portal.locationKey);
-      }
+    const activePortal = this.findActivePortal(nextX, nextY);
+    const activeNpc = this.findActiveNpc(nextX, nextY);
+    const activeEncounter = this.findActiveEncounter(nextX, nextY);
+    const prompt = this.resolvePrompt({
+      overlayMode,
+      portal: activePortal,
+      npc: activeNpc?.npc ?? null,
+      encounter: activeEncounter?.data ?? null,
     });
+    this.syncFieldPrompt(prompt);
+    this.syncOverlayState(overlayMode);
+    this.hintText.setText(`${prompt.title}  |  ${prompt.actionLabel}`);
 
-    this.npcMarkers.forEach(({ sprite, npc }) => {
-      if (Phaser.Math.Distance.Between(sprite.x, sprite.y, nextX, nextY) < 64) {
-        hint = `${npc.name}와 대화하려면 Space`;
-        if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
-          this.callbacks?.onInteractNpc(npc);
-        }
-      }
-    });
+    if (!canExplore) {
+      return;
+    }
 
-    this.encounterZones.forEach(({ zone, data }) => {
-      if (Phaser.Geom.Rectangle.Contains(zone, nextX, nextY)) {
-        hint = "전투 지역입니다. B 를 눌러 적과 교전할 수 있습니다.";
-        if (Phaser.Input.Keyboard.JustDown(this.keyBattle)) {
-          this.callbacks?.onEncounter(data);
-        }
-      }
-    });
+    if (activePortal && Phaser.Input.Keyboard.JustDown(this.keyEnter)) {
+      this.callbacks.onSceneChange(activePortal.locationKey);
+      return;
+    }
 
-    this.hintText.setText(hint);
+    if (activeNpc && Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+      this.callbacks.onInteractNpc(activeNpc.npc);
+      return;
+    }
+
+    if (activeEncounter && Phaser.Input.Keyboard.JustDown(this.keyBattle)) {
+      this.callbacks.onEncounter(activeEncounter.data);
+    }
   }
 
   private buildLocation(): void {
@@ -236,6 +251,8 @@ export class OverworldScene extends Phaser.Scene {
     this.encounterZones = [];
     this.collisionZones = [];
     this.npcMarkers = [];
+    this.lastPromptKey = "";
+    this.lastBroadcastKey = "";
     this.remoteSprites.forEach((sprite) => sprite.destroy());
     this.remoteSprites.clear();
 
@@ -341,11 +358,126 @@ export class OverworldScene extends Phaser.Scene {
       })
       .setScrollFactor(0)
       .setDepth(20);
+    this.overlayShade = this.add
+      .rectangle(location.scene.width / 2, location.scene.height / 2, location.scene.width, location.scene.height, 0x070b09, 0)
+      .setDepth(18);
+    this.overlayText = this.add
+      .text(20, 56, "", {
+        color: "#f4efe3",
+        fontFamily: "Space Mono, monospace",
+        fontSize: "12px",
+        letterSpacing: 2,
+      })
+      .setScrollFactor(0)
+      .setDepth(21);
 
     this.cameras.main.setBounds(0, 0, location.scene.width, location.scene.height);
     this.cameras.main.startFollow(this.playerSprite, true, 0.12, 0.12);
     this.cameras.main.setDeadzone(220, 160);
     this.cameras.main.roundPixels = true;
+  }
+
+  private findActivePortal(x: number, y: number): { zone: Phaser.Geom.Rectangle; locationKey: string; label: string } | null {
+    return this.portals.find((portal) => Phaser.Geom.Rectangle.Contains(portal.zone, x, y)) ?? null;
+  }
+
+  private findActiveNpc(x: number, y: number): { sprite: Phaser.GameObjects.Sprite; npc: DialogueNpc } | null {
+    return this.npcMarkers.find(({ sprite }) => Phaser.Math.Distance.Between(sprite.x, sprite.y, x, y) < 64) ?? null;
+  }
+
+  private findActiveEncounter(x: number, y: number): { zone: Phaser.Geom.Rectangle; data: EncounterZone } | null {
+    return this.encounterZones.find(({ zone }) => Phaser.Geom.Rectangle.Contains(zone, x, y)) ?? null;
+  }
+
+  private resolvePrompt(params: {
+    overlayMode: OverlayMode;
+    portal: { label: string } | null;
+    npc: DialogueNpc | null;
+    encounter: EncounterZone | null;
+  }): FieldPrompt {
+    if (params.overlayMode === "battle") {
+      return {
+        kind: "battle",
+        title: "전투 진행 중",
+        body: "오른쪽 전투 패널에서 행동을 선택하거나 1, 2, 3 키로 기본 행동을 실행하세요.",
+        actionLabel: "전투 패널 / 숫자키 1-3",
+        tone: "danger",
+      };
+    }
+
+    if (params.overlayMode === "dialogue") {
+      return {
+        kind: "dialogue",
+        title: "대화 진행 중",
+        body: "Space 또는 Enter 로 다음 대사를 넘기고, 마지막 줄에서 대화를 닫을 수 있습니다.",
+        actionLabel: "Space / Enter",
+        tone: "accent",
+      };
+    }
+
+    if (params.portal) {
+      return {
+        kind: "portal",
+        title: `${params.portal.label} 이동 준비`,
+        body: "출구 위에서 Enter 를 누르면 다음 씬으로 전환됩니다.",
+        actionLabel: "Enter",
+        tone: "accent",
+      };
+    }
+
+    if (params.encounter) {
+      return {
+        kind: "encounter",
+        title: "적 조우 가능 구역",
+        body: "B 키를 눌러 현재 지역 적과 교전할 수 있습니다.",
+        actionLabel: "B",
+        tone: "danger",
+      };
+    }
+
+    if (params.npc) {
+      return {
+        kind: "npc",
+        title: `${params.npc.name}와 대화`,
+        body: "NPC 근처에서 Space 를 누르면 대화 패널이 열립니다.",
+        actionLabel: "Space",
+        tone: "accent",
+      };
+    }
+
+    return {
+      kind: "idle",
+      title: this.sceneDefinition?.sceneId ?? "오버월드 탐험",
+      body: "WASD 이동, Enter 씬 전환, Space 대화, B 전투로 현재 지역을 탐험하세요.",
+      actionLabel: "WASD / Space / Enter / B",
+      tone: "neutral",
+    };
+  }
+
+  private syncFieldPrompt(prompt: FieldPrompt): void {
+    const promptKey = `${prompt.kind}:${prompt.title}:${prompt.body}:${prompt.actionLabel}:${prompt.tone}`;
+    if (promptKey === this.lastPromptKey) {
+      return;
+    }
+    this.lastPromptKey = promptKey;
+    this.callbacks?.onFieldPromptChange(prompt);
+  }
+
+  private syncOverlayState(mode: OverlayMode): void {
+    if (mode === "battle") {
+      this.overlayShade.setAlpha(0.22).setFillStyle(0x2d1010, 0.22);
+      this.overlayText.setText("BATTLE LOCK").setAlpha(1);
+      return;
+    }
+
+    if (mode === "dialogue") {
+      this.overlayShade.setAlpha(0.16).setFillStyle(0x10261d, 0.16);
+      this.overlayText.setText("DIALOGUE LOCK").setAlpha(1);
+      return;
+    }
+
+    this.overlayShade.setAlpha(0);
+    this.overlayText.setText("").setAlpha(0);
   }
 
   private renderSceneMap(scene: SceneDefinition): void {
