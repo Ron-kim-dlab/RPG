@@ -112,16 +112,18 @@ export class AppController {
 
     this.presence = new PresenceClient(import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000", {
       onSnapshot: (snapshot) => this.setPresence(snapshot),
+      onPresenceJoined: (presence) => this.handlePresenceJoined(presence),
       onPresenceUpdate: (presence) => this.mergePresence(presence),
-      onPresenceLeft: (username) => this.removePresence(username),
+      onPresenceLeft: (username) => this.handlePresenceLeft(username),
       onChatMessage: (message) => {
         this.store.update((state) => ({
           ...state,
           chatMessages: [...state.chatMessages, message].slice(-40),
         }));
       },
-      onConnect: () => this.store.setState({ connectionStatus: "online" }),
-      onDisconnect: () => this.store.setState({ connectionStatus: "offline" }),
+      onConnect: () => this.handleRealtimeConnect(),
+      onDisconnect: (reason) => this.handleRealtimeDisconnect(reason),
+      onConnectError: (message) => this.handleRealtimeConnectError(message),
     });
 
     this.store.subscribe((state) => {
@@ -562,8 +564,59 @@ export class AppController {
     this.store.setState({ connectionStatus: "connecting" });
   }
 
+  private handleRealtimeConnect(): void {
+    const state = this.store.getState();
+    const previousStatus = state.connectionStatus;
+    this.store.setState({ connectionStatus: "online" });
+
+    if (!state.player) {
+      return;
+    }
+
+    if (previousStatus === "offline") {
+      this.store.pushLog("실시간 연결이 복구되었습니다.");
+      return;
+    }
+
+    if (previousStatus === "connecting") {
+      this.store.pushLog("실시간 씬 동기화가 완료되었습니다.");
+    }
+  }
+
+  private handleRealtimeDisconnect(reason: string): void {
+    const state = this.store.getState();
+    const shouldLog = Boolean(state.player && state.connectionStatus !== "offline");
+    this.store.setState({
+      connectionStatus: "offline",
+      presence: [],
+    });
+
+    if (shouldLog) {
+      this.store.pushLog(`실시간 연결이 끊겼습니다. ${reason}`);
+    }
+  }
+
+  private handleRealtimeConnectError(message: string): void {
+    const state = this.store.getState();
+    this.store.setState({
+      connectionStatus: "offline",
+      presence: [],
+    });
+
+    if (state.player) {
+      this.store.pushLog(`실시간 연결 실패: ${message}`);
+    }
+  }
+
   private setPresence(snapshot: PresenceState[]): void {
     this.store.setState({ presence: snapshot });
+  }
+
+  private handlePresenceJoined(presence: PresenceState): void {
+    this.mergePresence(presence);
+    if (presence.username !== this.store.getState().player?.username) {
+      this.store.pushLog(`${presence.username} 님이 현재 씬에 합류했습니다.`);
+    }
   }
 
   private mergePresence(presence: PresenceState): void {
@@ -574,6 +627,14 @@ export class AppController {
         presence: [...existing, presence],
       };
     });
+  }
+
+  private handlePresenceLeft(username: string): void {
+    const selfUsername = this.store.getState().player?.username;
+    this.removePresence(username);
+    if (username !== selfUsername) {
+      this.store.pushLog(`${username} 님이 현재 씬에서 이탈했습니다.`);
+    }
   }
 
   private removePresence(username: string): void {

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
   LegacyBossData,
   LegacyEquipmentData,
@@ -12,9 +13,11 @@ import type {
 import { buildWorldContentFromLegacy } from "@rpg/game-core";
 
 let cachedWorld: WorldContent | null = null;
+const contentDir = dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = resolve(contentDir, "../../../../");
 
 async function readJson<T>(relativePath: string): Promise<T> {
-  const absolutePath = resolve(process.cwd(), relativePath);
+  const absolutePath = resolve(repositoryRoot, relativePath);
   const source = await readFile(absolutePath, "utf8");
   return JSON.parse(source) as T;
 }
