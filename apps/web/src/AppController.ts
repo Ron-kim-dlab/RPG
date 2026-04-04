@@ -25,6 +25,7 @@ import { ApiClient } from "./net/api";
 import { PresenceClient } from "./net/socket";
 import { GameBridge } from "./game/GameBridge";
 import { AppStore } from "./state/store";
+import { shouldBlockGameplayInput } from "./input";
 import {
   advanceDialogueProgress,
   createLocationStoryDialogue,
@@ -43,7 +44,7 @@ export class AppController {
   private readonly presence: PresenceClient;
   private lastSavedAt = 0;
   private readonly handleGlobalKeydown = (event: KeyboardEvent) => {
-    if (this.isTextEntryTarget(event.target)) {
+    if (this.isGameplayInputBlocked(event.target)) {
       return;
     }
 
@@ -105,6 +106,7 @@ export class AppController {
         const state = this.store.getState();
         return Boolean(state.player && !state.battle && !state.dialogue);
       },
+      isGameplayInputBlocked: () => this.isGameplayInputBlocked(this.getActiveElement()),
       getOverlayMode: () => deriveOverlayMode(this.store.getState()),
       hasPendingLocationStory: () => {
         const state = this.store.getState();
@@ -676,11 +678,16 @@ export class AppController {
     }));
   }
 
-  private isTextEntryTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) {
-      return false;
+  private isGameplayInputBlocked(target: EventTarget | null): boolean {
+    return shouldBlockGameplayInput(target, this.getActiveElement());
+  }
+
+  private getActiveElement(): Element | null {
+    if (typeof document === "undefined") {
+      return null;
     }
-    return target.closest("input, textarea, [contenteditable='true']") !== null;
+
+    return document.activeElement;
   }
 
   private applyEquipmentSelection(player: PlayerSave, equippedEquipmentIds: string[]): PlayerSave {
