@@ -8,6 +8,7 @@ import { OverworldScene } from "./OverworldScene";
 
 type BridgeCallbacks = {
   canMove: () => boolean;
+  isGameplayInputBlocked: () => boolean;
   getOverlayMode: () => OverlayMode;
   hasPendingLocationStory: () => boolean;
   onPositionChange: (x: number, y: number, facing: Facing) => void;

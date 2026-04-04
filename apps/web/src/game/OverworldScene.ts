@@ -12,6 +12,7 @@ import type { FieldPrompt, OverlayMode } from "../gameplay";
 
 type SceneCallbacks = {
   canMove: () => boolean;
+  isGameplayInputBlocked: () => boolean;
   getOverlayMode: () => OverlayMode;
   hasPendingLocationStory: () => boolean;
   onPositionChange: (x: number, y: number, facing: Facing) => void;
@@ -73,6 +74,7 @@ export class OverworldScene extends Phaser.Scene {
   private lastPresenceSentAt = 0;
   private lastBroadcastKey = "";
   private lastPromptKey = "";
+  private gameplayCaptureDisabled = false;
 
   constructor() {
     super("overworld");
@@ -87,6 +89,10 @@ export class OverworldScene extends Phaser.Scene {
     this.keyEnter = this.input.keyboard!.addKey("ENTER");
     this.keySpace = this.input.keyboard!.addKey("SPACE");
     this.keyBattle = this.input.keyboard!.addKey("B");
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.enableGlobalCapture();
+      this.gameplayCaptureDisabled = false;
+    });
 
     if (this.world && this.playerState) {
       this.buildLocation();
@@ -159,7 +165,9 @@ export class OverworldScene extends Phaser.Scene {
     }
 
     const overlayMode = this.callbacks.getOverlayMode();
-    const canExplore = overlayMode === "explore" && this.callbacks.canMove();
+    const gameplayInputBlocked = this.callbacks.isGameplayInputBlocked();
+    this.syncGameplayCapture(gameplayInputBlocked);
+    const canExplore = overlayMode === "explore" && this.callbacks.canMove() && !gameplayInputBlocked;
     const speed = canExplore ? 160 : 0;
     let velocityX = 0;
     let velocityY = 0;
@@ -242,6 +250,22 @@ export class OverworldScene extends Phaser.Scene {
     if (activeEncounter && Phaser.Input.Keyboard.JustDown(this.keyBattle)) {
       this.callbacks.onEncounter(activeEncounter.data);
     }
+  }
+
+  private syncGameplayCapture(gameplayInputBlocked: boolean): void {
+    const keyboard = this.input.keyboard;
+    if (!keyboard || gameplayInputBlocked === this.gameplayCaptureDisabled) {
+      return;
+    }
+
+    if (gameplayInputBlocked) {
+      keyboard.disableGlobalCapture();
+      keyboard.resetKeys();
+    } else {
+      keyboard.enableGlobalCapture();
+    }
+
+    this.gameplayCaptureDisabled = gameplayInputBlocked;
   }
 
   private buildLocation(): void {
