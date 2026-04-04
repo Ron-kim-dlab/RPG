@@ -1,10 +1,7 @@
-import Phaser from "phaser";
+import type Phaser from "phaser";
 import type { DialogueNpc, EncounterZone, Facing, PlayerSave, PresenceState, WorldContent } from "@rpg/game-core";
 import type { FieldPrompt, OverlayMode } from "../gameplay";
-import { BootScene } from "./BootScene";
-import { LoadingScene } from "./LoadingScene";
-import { LoginScene } from "./LoginScene";
-import { OverworldScene } from "./OverworldScene";
+import type { OverworldScene } from "./OverworldScene";
 
 type BridgeCallbacks = {
   canMove: () => boolean;
@@ -20,24 +17,45 @@ type BridgeCallbacks = {
 };
 
 export class GameBridge {
-  private readonly game: Phaser.Game;
-  private readonly loadingScene = new LoadingScene();
-  private readonly loginScene = new LoginScene();
-  private readonly overworldScene = new OverworldScene();
   private activeScene: "loading" | "login" | "overworld" = "loading";
 
-  constructor(container: HTMLElement, private readonly callbacks: BridgeCallbacks) {
-    this.game = new Phaser.Game({
-      type: Phaser.AUTO,
+  private constructor(
+    private readonly game: Phaser.Game,
+    private readonly overworldScene: OverworldScene,
+    private readonly callbacks: BridgeCallbacks,
+  ) {}
+
+  static async create(container: HTMLElement, callbacks: BridgeCallbacks): Promise<GameBridge> {
+    const [
+      PhaserModule,
+      { BootScene },
+      { LoadingScene },
+      { LoginScene },
+      { OverworldScene },
+    ] = await Promise.all([
+      import("phaser"),
+      import("./BootScene"),
+      import("./LoadingScene"),
+      import("./LoginScene"),
+      import("./OverworldScene"),
+    ]);
+
+    const loadingScene = new LoadingScene();
+    const loginScene = new LoginScene();
+    const overworldScene = new OverworldScene();
+    const game = new PhaserModule.default.Game({
+      type: PhaserModule.default.AUTO,
       parent: container,
       width: 1024,
       height: 768,
       backgroundColor: "#1f2937",
-      scene: [new BootScene(), this.loadingScene, this.loginScene, this.overworldScene],
+      scene: [new BootScene(), loadingScene, loginScene, overworldScene],
       render: {
         pixelArt: true,
       },
     });
+
+    return new GameBridge(game, overworldScene, callbacks);
   }
 
   sync(world: WorldContent | null, player: PlayerSave | null, nearbyPlayers: PresenceState[]): void {
@@ -67,4 +85,8 @@ export class GameBridge {
     this.game.scene.start(nextScene);
     this.activeScene = nextScene;
   }
+}
+
+export async function createGameBridge(container: HTMLElement, callbacks: BridgeCallbacks): Promise<GameBridge> {
+  return GameBridge.create(container, callbacks);
 }

@@ -21,9 +21,9 @@ import {
 } from "@rpg/game-core";
 import { validateAuthCredentials } from "./auth";
 import { createBattleReport, deriveOverlayMode, didSceneChange } from "./gameplay";
+import type { FieldPrompt } from "./gameplay";
 import { ApiClient } from "./net/api";
 import { PresenceClient } from "./net/socket";
-import { GameBridge } from "./game/GameBridge";
 import { AppStore } from "./state/store";
 import { shouldBlockGameplayInput } from "./input";
 import {
@@ -36,11 +36,32 @@ import { DomUi } from "./ui/dom";
 
 const TOKEN_KEY = "rpg-rebuild-token";
 
+type GameRuntime = {
+  sync: (world: WorldContent | null, player: PlayerSave | null, nearbyPlayers: PresenceState[]) => void;
+  destroy: () => void;
+};
+
+type GameBridgeCallbacks = {
+  canMove: () => boolean;
+  isGameplayInputBlocked: () => boolean;
+  getOverlayMode: () => ReturnType<typeof deriveOverlayMode>;
+  hasPendingLocationStory: () => boolean;
+  onPositionChange: (x: number, y: number, facing: Facing) => void;
+  onSceneChange: (locationKey: string) => void;
+  onOpenLocationStory: () => void;
+  onInteractNpc: (npc: DialogueNpc) => void;
+  onEncounter: (zone: EncounterZone) => void;
+  onFieldPromptChange: (prompt: FieldPrompt) => void;
+};
+
 export class AppController {
   private readonly store = new AppStore();
   private readonly api = new ApiClient(import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000");
   private readonly ui: DomUi;
-  private readonly game: GameBridge;
+  private game: GameRuntime | null = null;
+  private gamePromise: Promise<GameRuntime> | null = null;
+  private gameRetryTimer: number | null = null;
+  private hasRetriedGameLoad = false;
   private readonly presence: PresenceClient;
   private lastSavedAt = 0;
   private readonly handleGlobalKeydown = (event: KeyboardEvent) => {
@@ -101,33 +122,6 @@ export class AppController {
       onSendChat: (text) => this.presence.sendChat(text),
     });
 
-    this.game = new GameBridge(this.ui.getGameContainer(), {
-      canMove: () => {
-        const state = this.store.getState();
-        return Boolean(state.player && !state.battle && !state.dialogue);
-      },
-      isGameplayInputBlocked: () => this.isGameplayInputBlocked(this.getActiveElement()),
-      getOverlayMode: () => deriveOverlayMode(this.store.getState()),
-      hasPendingLocationStory: () => {
-        const state = this.store.getState();
-        if (!state.player || !state.world) {
-          return false;
-        }
-        const location = state.world.locations[state.player.locationKey] ?? null;
-        return hasUnreadLocationStory(state.player, location);
-      },
-      onPositionChange: (x, y, facing) => this.updatePosition(x, y, facing),
-      onSceneChange: (locationKey) => {
-        void this.changeLocation(locationKey);
-      },
-      onOpenLocationStory: () => this.openCurrentLocationStory(),
-      onInteractNpc: (npc) => this.openNpcDialogue(npc),
-      onEncounter: (zone) => {
-        void this.startEncounter(zone);
-      },
-      onFieldPromptChange: (prompt) => this.store.setState({ fieldPrompt: prompt }),
-    });
-
     this.presence = new PresenceClient(import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000", {
       onSnapshot: (snapshot) => this.setPresence(snapshot),
       onPresenceJoined: (presence) => this.handlePresenceJoined(presence),
@@ -170,7 +164,7 @@ export class AppController {
         : [];
 
       this.ui.render(state, currentLocation, equipmentForLocation, skillsForLocation, equipped, learnedSkills, learnedTactics);
-      this.game.sync(state.world, state.player, state.presence);
+      this.game?.sync(state.world, state.player, state.presence);
     });
 
     window.addEventListener("keydown", this.handleGlobalKeydown);
@@ -181,6 +175,7 @@ export class AppController {
     try {
       const world = await this.api.bootstrap();
       this.store.setState({ world });
+      this.loadGameBridge();
 
       const token = localStorage.getItem(TOKEN_KEY);
       if (token) {
@@ -227,6 +222,78 @@ export class AppController {
     return state.player ? this.world.locations[state.player.locationKey] ?? null : null;
   }
 
+  private buildGameBridgeCallbacks(): GameBridgeCallbacks {
+    return {
+      canMove: () => {
+        const state = this.store.getState();
+        return Boolean(state.player && !state.battle && !state.dialogue);
+      },
+      isGameplayInputBlocked: () => this.isGameplayInputBlocked(this.getActiveElement()),
+      getOverlayMode: () => deriveOverlayMode(this.store.getState()),
+      hasPendingLocationStory: () => {
+        const state = this.store.getState();
+        if (!state.player || !state.world) {
+          return false;
+        }
+        const location = state.world.locations[state.player.locationKey] ?? null;
+        return hasUnreadLocationStory(state.player, location);
+      },
+      onPositionChange: (x, y, facing) => this.updatePosition(x, y, facing),
+      onSceneChange: (locationKey) => {
+        void this.changeLocation(locationKey);
+      },
+      onOpenLocationStory: () => this.openCurrentLocationStory(),
+      onInteractNpc: (npc) => this.openNpcDialogue(npc),
+      onEncounter: (zone) => {
+        void this.startEncounter(zone);
+      },
+      onFieldPromptChange: (prompt) => this.store.setState({ fieldPrompt: prompt }),
+    };
+  }
+
+  private async ensureGameBridge(): Promise<GameRuntime> {
+    if (this.game) {
+      return this.game;
+    }
+
+    if (!this.gamePromise) {
+      this.gamePromise = import("./game/GameBridge")
+        .then(async ({ createGameBridge }) => {
+          const game = await createGameBridge(this.ui.getGameContainer(), this.buildGameBridgeCallbacks());
+          this.game = game;
+          this.hasRetriedGameLoad = false;
+          if (this.gameRetryTimer !== null) {
+            window.clearTimeout(this.gameRetryTimer);
+            this.gameRetryTimer = null;
+          }
+          const state = this.store.getState();
+          game.sync(state.world, state.player, state.presence);
+          return game;
+        })
+        .catch((error) => {
+          this.gamePromise = null;
+          throw error;
+        });
+    }
+
+    return this.gamePromise;
+  }
+
+  private loadGameBridge(): void {
+    void this.ensureGameBridge().catch((error) => {
+      const message = error instanceof Error ? error.message : "게임 런타임 로딩 실패";
+      this.store.pushLog(message);
+      if (this.hasRetriedGameLoad || this.gameRetryTimer !== null) {
+        return;
+      }
+      this.hasRetriedGameLoad = true;
+      this.gameRetryTimer = window.setTimeout(() => {
+        this.gameRetryTimer = null;
+        this.loadGameBridge();
+      }, 2000);
+    });
+  }
+
   private async authenticate(mode: "login" | "register", username: string, password: string): Promise<void> {
     const normalizedUsername = username.trim();
     const validationMessage = validateAuthCredentials(normalizedUsername, password);
@@ -251,6 +318,7 @@ export class AppController {
         presence: [],
         pending: false,
       });
+      this.loadGameBridge();
       this.store.pushLog(`${normalizedUsername} ${mode === "login" ? "로그인" : "회원가입"} 성공`);
       this.presence.connect(session.token);
       this.enterPresence(session.player, false);
