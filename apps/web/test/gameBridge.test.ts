@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { shouldDisableGlobalKeyboardCapture } from "../src/game/GameBridge";
+import { INITIAL_SCENE, shouldDisableGlobalKeyboardCapture } from "../src/game/sceneFlow";
 
-describe("GameBridge keyboard capture", () => {
+describe("scene flow", () => {
+  it("boots into the loading scene before auth or overworld", () => {
+    expect(INITIAL_SCENE).toBe("loading");
+  });
+
   it("disables global capture for loading and login scenes", () => {
     expect(shouldDisableGlobalKeyboardCapture("loading")).toBe(true);
     expect(shouldDisableGlobalKeyboardCapture("login")).toBe(true);

@@ -90,7 +90,7 @@ export class OverworldScene extends Phaser.Scene {
     this.keySpace = this.input.keyboard!.addKey("SPACE");
     this.keyBattle = this.input.keyboard!.addKey("B");
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.input.keyboard?.enableGlobalCapture();
+      this.input.keyboard?.resetKeys();
       this.gameplayCaptureDisabled = false;
     });
 

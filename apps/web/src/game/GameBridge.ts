@@ -2,8 +2,7 @@ import type Phaser from "phaser";
 import type { DialogueNpc, EncounterZone, Facing, PlayerSave, PresenceState, WorldContent } from "@rpg/game-core";
 import type { FieldPrompt, OverlayMode } from "../gameplay";
 import type { OverworldScene } from "./OverworldScene";
-
-export type ManagedSceneKey = "loading" | "login" | "overworld";
+import { INITIAL_SCENE, shouldDisableGlobalKeyboardCapture, type ManagedSceneKey } from "./sceneFlow";
 
 type BridgeCallbacks = {
   canMove: () => boolean;
@@ -19,7 +18,7 @@ type BridgeCallbacks = {
 };
 
 export class GameBridge {
-  private activeScene: ManagedSceneKey = "loading";
+  private activeScene: ManagedSceneKey = INITIAL_SCENE;
 
   private constructor(
     private readonly game: Phaser.Game,
@@ -86,9 +85,9 @@ export class GameBridge {
       return;
     }
 
-    this.syncGlobalCapture(nextScene);
     this.game.scene.start(nextScene);
     this.activeScene = nextScene;
+    this.syncGlobalCapture(nextScene);
   }
 
   private syncGlobalCapture(activeScene: ManagedSceneKey): void {
@@ -109,8 +108,4 @@ export class GameBridge {
 
 export async function createGameBridge(container: HTMLElement, callbacks: BridgeCallbacks): Promise<GameBridge> {
   return GameBridge.create(container, callbacks);
-}
-
-export function shouldDisableGlobalKeyboardCapture(activeScene: ManagedSceneKey): boolean {
-  return activeScene !== "overworld";
 }
