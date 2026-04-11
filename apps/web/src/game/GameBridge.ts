@@ -3,6 +3,8 @@ import type { DialogueNpc, EncounterZone, Facing, PlayerSave, PresenceState, Wor
 import type { FieldPrompt, OverlayMode } from "../gameplay";
 import type { OverworldScene } from "./OverworldScene";
 
+export type ManagedSceneKey = "loading" | "login" | "overworld";
+
 type BridgeCallbacks = {
   canMove: () => boolean;
   isGameplayInputBlocked: () => boolean;
@@ -17,7 +19,7 @@ type BridgeCallbacks = {
 };
 
 export class GameBridge {
-  private activeScene: "loading" | "login" | "overworld" = "loading";
+  private activeScene: ManagedSceneKey = "loading";
 
   private constructor(
     private readonly game: Phaser.Game,
@@ -55,7 +57,9 @@ export class GameBridge {
       },
     });
 
-    return new GameBridge(game, overworldScene, callbacks);
+    const bridge = new GameBridge(game, overworldScene, callbacks);
+    bridge.syncGlobalCapture(bridge.activeScene);
+    return bridge;
   }
 
   sync(world: WorldContent | null, player: PlayerSave | null, nearbyPlayers: PresenceState[]): void {
@@ -82,11 +86,31 @@ export class GameBridge {
       return;
     }
 
+    this.syncGlobalCapture(nextScene);
     this.game.scene.start(nextScene);
     this.activeScene = nextScene;
+  }
+
+  private syncGlobalCapture(activeScene: ManagedSceneKey): void {
+    const keyboardManager = this.game.input.keyboard;
+    if (!keyboardManager) {
+      return;
+    }
+
+    if (shouldDisableGlobalKeyboardCapture(activeScene)) {
+      keyboardManager.preventDefault = false;
+      this.overworldScene.input.keyboard?.resetKeys();
+      return;
+    }
+
+    keyboardManager.preventDefault = true;
   }
 }
 
 export async function createGameBridge(container: HTMLElement, callbacks: BridgeCallbacks): Promise<GameBridge> {
   return GameBridge.create(container, callbacks);
+}
+
+export function shouldDisableGlobalKeyboardCapture(activeScene: ManagedSceneKey): boolean {
+  return activeScene !== "overworld";
 }
