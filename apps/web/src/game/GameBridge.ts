@@ -27,6 +27,11 @@ export class GameBridge {
   ) {}
 
   static async create(container: HTMLElement, callbacks: BridgeCallbacks): Promise<GameBridge> {
+    let notifyBootComplete: (() => void) | null = null;
+    const bootCompleted = new Promise<void>((resolve) => {
+      notifyBootComplete = resolve;
+    });
+
     const [
       PhaserModule,
       { BootScene },
@@ -44,17 +49,22 @@ export class GameBridge {
     const loadingScene = new LoadingScene();
     const loginScene = new LoginScene();
     const overworldScene = new OverworldScene();
+    const bootScene = new BootScene(() => {
+      notifyBootComplete?.();
+    });
     const game = new PhaserModule.default.Game({
       type: PhaserModule.default.AUTO,
       parent: container,
       width: 1024,
       height: 768,
       backgroundColor: "#1f2937",
-      scene: [new BootScene(), loadingScene, loginScene, overworldScene],
+      scene: [bootScene, loadingScene, loginScene, overworldScene],
       render: {
         pixelArt: true,
       },
     });
+
+    await bootCompleted;
 
     const bridge = new GameBridge(game, overworldScene, callbacks);
     bridge.syncGlobalCapture(bridge.activeScene);
