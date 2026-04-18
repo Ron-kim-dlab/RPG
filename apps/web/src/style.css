@@ -513,6 +513,26 @@ button {
   line-height: 1.45;
 }
 
+.dock-card span + span {
+  margin-top: 2px;
+}
+
+.dock-card .card-description {
+  color: var(--text-main);
+  font-size: 0.92rem;
+}
+
+.dock-card .card-meta,
+.dock-card .card-action {
+  color: var(--text-muted);
+}
+
+.dock-card .card-action {
+  font-family: "Space Mono", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
 .dock-card.accent {
   background: rgba(83, 181, 156, 0.18);
 }

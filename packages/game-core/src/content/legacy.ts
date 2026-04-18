@@ -13,6 +13,7 @@ import type {
   WorldContent,
 } from "../types";
 import {
+  createScenePortalSlots,
   createSceneLayout,
   getSceneAssetBundle,
   getSceneLayoutId,
@@ -333,6 +334,7 @@ function buildScene(
     hasBoss,
   });
   const layout = createSceneLayout(layoutId);
+  const portalSlots = createScenePortalSlots(layout, connectionKeys.length);
 
   return {
     sceneId,
@@ -343,7 +345,7 @@ function buildScene(
     backgroundColor: areaColor(mainLocation),
     spawn: { ...layout.spawn },
     portals: connectionKeys.map((connection, index) => {
-      const slot = layout.portalSlots[index % layout.portalSlots.length]!;
+      const slot = portalSlots[index]!;
       return {
         id: toStableId("portal", `${sceneId}-${connection.toLocationKey}`),
         label: connection.label,

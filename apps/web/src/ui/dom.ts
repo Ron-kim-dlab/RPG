@@ -20,6 +20,7 @@ import {
   type FloatingPanelKey,
   type FloatingPanelLayout,
 } from "./layout";
+import { describeEquipmentActionCard, describeSkillActionCard } from "./actionCards";
 
 type UiCallbacks = {
   onAuthSubmit: (mode: "login" | "register", username: string, password: string) => void;
@@ -705,10 +706,16 @@ export class DomUi {
       .map((item) => {
         const owned = player.ownedEquipmentIds.includes(item.id);
         const equippedState = player.equippedEquipmentIds.includes(item.id);
+        const card = describeEquipmentActionCard(item, {
+          owned,
+          equipped: equippedState,
+        });
         return `
           <button class="dock-card" data-equipment="${item.id}">
-            <strong>${item.name}</strong>
-            <span>${owned ? (equippedState ? "장착 해제/교체" : "장착") : `${item.cost} 코인 구매`}</span>
+            <strong>${card.title}</strong>
+            <span class="card-description">${card.description}</span>
+            <span class="card-meta">${card.meta}</span>
+            <span class="card-action">${card.action}</span>
           </button>
         `;
       })
@@ -716,10 +723,13 @@ export class DomUi {
     const skillButtons = skillsForLocation
       .map((skill) => {
         const learned = player.learnedSkillIds.includes(skill.id);
+        const card = describeSkillActionCard(skill, learned);
         return `
           <button class="dock-card" data-skill="${skill.id}">
-            <strong>${skill.name}</strong>
-            <span>${learned ? "습득 완료" : `${skill.cost} 코인 습득`}</span>
+            <strong>${card.title}</strong>
+            <span class="card-description">${card.description}</span>
+            <span class="card-meta">${card.meta}</span>
+            <span class="card-action">${card.action}</span>
           </button>
         `;
       })
