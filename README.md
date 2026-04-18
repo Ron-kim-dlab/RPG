@@ -137,13 +137,62 @@ Current local playtest flow:
 5. Use `B` in encounter zones.
 6. Use `1`, `2`, `3` or the battle UI for core combat actions.
 
+## Local Network Playtest On WSL
+
+Use this flow when another device on the same Wi-Fi/LAN should connect to the game running inside WSL.
+
+1. Find the Windows LAN IP from PowerShell:
+
+```powershell
+Get-NetIPAddress -AddressFamily IPv4
+```
+
+Example LAN IP: `192.168.0.9`.
+
+2. Point the web client at the LAN API in `apps/web/.env.local`:
+
+```dotenv
+VITE_API_BASE_URL=http://192.168.0.9:4023
+```
+
+3. Allow the LAN web origin in `apps/server/.env.local`:
+
+```dotenv
+CLIENT_ORIGIN=http://localhost:5173,http://127.0.0.1:5173,http://192.168.0.9:5173
+```
+
+4. Run the WSL port proxy and firewall helper from WSL:
+
+```powershell
+corepack pnpm dev:wsl-lan
+```
+
+The helper asks for elevated Windows PowerShell when needed, forwards Windows ports `5173` and `4023` to the current WSL IP, and creates inbound firewall rules.
+
+5. Start the backend and LAN web server from WSL:
+
+```bash
+corepack pnpm dev:server
+corepack pnpm dev:web:lan
+```
+
+6. Open the game from another local-network device:
+
+```text
+http://192.168.0.9:5173
+```
+
+If WSL restarts, its internal IP can change. Re-run `corepack pnpm dev:wsl-lan` after WSL restarts.
+
 ## Development Commands
 
 From the repository root:
 
 ```bash
 corepack pnpm dev:web
+corepack pnpm dev:web:lan
 corepack pnpm dev:server
+corepack pnpm dev:wsl-lan
 corepack pnpm lint
 corepack pnpm typecheck
 corepack pnpm test
