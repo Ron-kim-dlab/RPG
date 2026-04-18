@@ -262,6 +262,18 @@ function validateRectangleInsideScene(
   return issues;
 }
 
+function rectanglesOverlap(
+  left: Pick<CollisionZone, "x" | "y" | "width" | "height">,
+  right: Pick<CollisionZone, "x" | "y" | "width" | "height">,
+): boolean {
+  return (
+    left.x < right.x + right.width
+    && left.x + left.width > right.x
+    && left.y < right.y + right.height
+    && left.y + left.height > right.y
+  );
+}
+
 function validateEncounterZone(zone: EncounterZone, world: WorldContent, path: string): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
@@ -297,6 +309,17 @@ function validateLocation(location: LocationNode, key: string, world: WorldConte
 
   location.scene.portals.forEach((portal, index) => {
     issues.push(...validateRectangleInsideScene(portal, location.scene, `${path}.scene.portals[${index}]`, "Portal"));
+  });
+
+  location.scene.portals.forEach((portal, index) => {
+    location.scene.portals.slice(index + 1).forEach((otherPortal, otherIndex) => {
+      if (rectanglesOverlap(portal, otherPortal)) {
+        issues.push(issue(
+          `${path}.scene.portals[${index}]`,
+          `Portal '${portal.id}' overlaps portal '${otherPortal.id}' at portals[${index + otherIndex + 1}].`,
+        ));
+      }
+    });
   });
 
   location.scene.npcs.forEach((npc, index) => {
