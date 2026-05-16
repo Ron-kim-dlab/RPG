@@ -5,6 +5,29 @@ import { join, relative, resolve } from "node:path";
 const LEGACY_TARGETS = ["api", "lib", "server.js", "script.js", "vercel.json"];
 const SECRET_PATTERN = /\b(MONGODB_URI|JWT_SECRET|STORAGE_DRIVER|CLIENT_ORIGIN|JWT_EXPIRES_IN|BCRYPT_SALT_ROUNDS|PORT)\b/u;
 
+function normalizeIgnoreEntry(entry) {
+  return entry.trim().replace(/^\/+|\/+$/gu, "");
+}
+
+function readVercelIgnoredTargets(rootDir) {
+  const ignorePath = resolve(rootDir, ".vercelignore");
+  if (!existsSync(ignorePath)) {
+    return new Set();
+  }
+
+  return new Set(
+    readFileSync(ignorePath, "utf8")
+      .split(/\r?\n/u)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry && !entry.startsWith("#"))
+      .map(normalizeIgnoreEntry),
+  );
+}
+
+function isVercelIgnored(target, ignoredTargets) {
+  return ignoredTargets.has(normalizeIgnoreEntry(target));
+}
+
 function walkFiles(targetPath) {
   const stats = statSync(targetPath);
   if (stats.isFile()) {
@@ -28,8 +51,13 @@ function findMatches(filePath) {
 const rootDir = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const strictMode = process.argv.includes("--strict");
 const findings = [];
+const ignoredTargets = readVercelIgnoredTargets(rootDir);
 
 for (const target of LEGACY_TARGETS) {
+  if (isVercelIgnored(target, ignoredTargets)) {
+    continue;
+  }
+
   const absolutePath = resolve(rootDir, target);
   if (!existsSync(absolutePath)) {
     continue;
