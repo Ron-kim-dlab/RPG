@@ -1,23 +1,56 @@
-.vercel
-/node_modules
-**/node_modules
+# Dependencies
+/node_modules/
+**/node_modules/
+
+# Package-manager lockfiles from non-pnpm installs
 /package-lock.json
-/.turbo
-/.playwright
-/.cache
-/.vite
-**/.vite
-/dist
-/coverage
-**/dist
-**/coverage
-/.env
-/.env.local
-/.env.*.local
+/yarn.lock
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+/dist/
+**/dist/
+/build/
+**/build/
+
+# Test and coverage artifacts
+/coverage/
+**/coverage/
+/.nyc_output/
+**/.nyc_output/
+/playwright-report/
+/test-results/
+/blob-report/
+
+# Tool caches
+/.turbo/
+/.cache/
+/.vite/
+**/.vite/
+/.playwright/
+playwright/.cache/
+.eslintcache
+*.tsbuildinfo
+vite.config.*.timestamp-*
+
+# Deployment / local runtime state
+.vercel/
+.omx/
+
+# Environment files; keep examples tracked
+.env
+.env.*
 **/.env
-**/.env.local
-**/.env.*.local
-!/.env.example
+**/.env.*
+!.env.example
 !**/.env.example
-playwright-report
-test-results
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
