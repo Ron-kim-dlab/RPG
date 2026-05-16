@@ -6,7 +6,7 @@ import type {
   SkillDefinition,
   TacticDefinition,
 } from "@rpg/game-core";
-import { AUTH_PASSWORD_MIN_LENGTH, AUTH_USERNAME_MIN_LENGTH } from "../auth";
+import { AUTH_PASSWORD_MIN_LENGTH, AUTH_USERNAME_MAX_LENGTH, AUTH_USERNAME_MIN_LENGTH } from "../auth";
 import type { AppState } from "../state/store";
 import {
   clampFloatingPanelLayout,
@@ -48,6 +48,15 @@ type LayoutGesture =
     pointerId: number;
     mode: "resize";
   };
+
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 export class DomUi {
   private readonly root: HTMLElement;
@@ -520,15 +529,18 @@ export class DomUi {
     bodyClassName?: string;
   }): string {
     const headingTag = options.titleTag ?? "h2";
+    const eyebrow = escapeHtml(options.eyebrow);
+    const title = escapeHtml(options.title);
+    const subtitle = options.subtitle ? escapeHtml(options.subtitle) : "";
 
     return `
       <div class="panel-shell">
         <div class="panel-shell-header">
           <div class="panel-shell-copy">
-            <div class="eyebrow">${options.eyebrow}</div>
+            <div class="eyebrow">${eyebrow}</div>
             <div class="panel-shell-heading">
-              <${headingTag}>${options.title}</${headingTag}>
-              ${options.subtitle ? `<p class="panel-shell-subtitle">${options.subtitle}</p>` : ""}
+              <${headingTag}>${title}</${headingTag}>
+              ${subtitle ? `<p class="panel-shell-subtitle">${subtitle}</p>` : ""}
             </div>
           </div>
           <div class="panel-shell-controls" data-no-panel-drag>
@@ -537,7 +549,7 @@ export class DomUi {
               class="ghost panel-toggle-button"
               type="button"
               data-panel-toggle
-              data-panel-title="${options.title}"
+              data-panel-title="${title}"
             >
               ${this.isPanelCollapsed(options.key) ? "펼치기" : "접기"}
             </button>
@@ -589,7 +601,15 @@ export class DomUi {
         <form class="auth-form">
           <label>
             아이디
-            <input name="username" autocomplete="username" minlength="${AUTH_USERNAME_MIN_LENGTH}" required ${disabled} />
+            <input
+              name="username"
+              autocomplete="username"
+              minlength="${AUTH_USERNAME_MIN_LENGTH}"
+              maxlength="${AUTH_USERNAME_MAX_LENGTH}"
+              pattern="[A-Za-z0-9_-]+"
+              required
+              ${disabled}
+            />
           </label>
           <label>
             비밀번호
@@ -602,7 +622,7 @@ export class DomUi {
               ${disabled}
             />
           </label>
-          <p class="panel-note">아이디는 ${AUTH_USERNAME_MIN_LENGTH}자 이상, 비밀번호는 ${AUTH_PASSWORD_MIN_LENGTH}자 이상이어야 합니다.</p>
+          <p class="panel-note">아이디는 ${AUTH_USERNAME_MIN_LENGTH}-${AUTH_USERNAME_MAX_LENGTH}자의 영문, 숫자, 밑줄, 하이픈만 사용할 수 있고, 비밀번호는 ${AUTH_PASSWORD_MIN_LENGTH}자 이상이어야 합니다.</p>
           <button type="submit" class="primary" ${disabled}>
             ${state.pending ? "처리 중..." : state.authMode === "login" ? "접속하기" : "모험 시작"}
           </button>
@@ -650,10 +670,10 @@ export class DomUi {
         <div class="context-card ${prompt.tone}">
           <div>
             <div class="eyebrow">FIELD PROMPT</div>
-            <h3>${prompt.title}</h3>
-            <p>${prompt.body}</p>
+            <h3>${escapeHtml(prompt.title)}</h3>
+            <p>${escapeHtml(prompt.body)}</p>
           </div>
-          <span class="pill">${prompt.actionLabel}</span>
+          <span class="pill">${escapeHtml(prompt.actionLabel)}</span>
         </div>
       ` : ""}
     `;
@@ -711,11 +731,11 @@ export class DomUi {
           equipped: equippedState,
         });
         return `
-          <button class="dock-card" data-equipment="${item.id}">
-            <strong>${card.title}</strong>
-            <span class="card-description">${card.description}</span>
-            <span class="card-meta">${card.meta}</span>
-            <span class="card-action">${card.action}</span>
+          <button class="dock-card" data-equipment="${escapeHtml(item.id)}">
+            <strong>${escapeHtml(card.title)}</strong>
+            <span class="card-description">${escapeHtml(card.description)}</span>
+            <span class="card-meta">${escapeHtml(card.meta)}</span>
+            <span class="card-action">${escapeHtml(card.action)}</span>
           </button>
         `;
       })
@@ -725,17 +745,17 @@ export class DomUi {
         const learned = player.learnedSkillIds.includes(skill.id);
         const card = describeSkillActionCard(skill, learned);
         return `
-          <button class="dock-card" data-skill="${skill.id}">
-            <strong>${card.title}</strong>
-            <span class="card-description">${card.description}</span>
-            <span class="card-meta">${card.meta}</span>
-            <span class="card-action">${card.action}</span>
+          <button class="dock-card" data-skill="${escapeHtml(skill.id)}">
+            <strong>${escapeHtml(card.title)}</strong>
+            <span class="card-description">${escapeHtml(card.description)}</span>
+            <span class="card-meta">${escapeHtml(card.meta)}</span>
+            <span class="card-action">${escapeHtml(card.action)}</span>
           </button>
         `;
       })
       .join("");
     const equippedPills = equipped.length > 0
-      ? equipped.map((item) => `<span class="pill">${item.name}</span>`).join("")
+      ? equipped.map((item) => `<span class="pill">${escapeHtml(item.name)}</span>`).join("")
       : `<span class="pill muted">장착 없음</span>`;
 
     const hasContextActions = restingVisible || equipmentButtons || skillButtons;
@@ -746,7 +766,7 @@ export class DomUi {
       title: currentLocation.subLocation,
       controls: `
         <div class="dock-summary">
-          <span class="pill">${currentLocation.mainLocation}</span>
+          <span class="pill">${escapeHtml(currentLocation.mainLocation)}</span>
           ${equippedPills}
         </div>
       `,
@@ -759,8 +779,8 @@ export class DomUi {
           ${battle ? `<div class="dock-card static danger"><strong>전투 진행 중</strong><span>오른쪽 전투 오버레이에서 행동을 선택하세요.</span></div>` : ""}
           ${battleReport ? `
             <div class="dock-card static ${battleReport.outcome === "enemy_win" ? "danger" : "accent"} report-card">
-              <strong>${battleReport.title}</strong>
-              <span>${battleReport.summary}</span>
+              <strong>${escapeHtml(battleReport.title)}</strong>
+              <span>${escapeHtml(battleReport.summary)}</span>
               <span>최근 전투 로그 ${battleReport.lines.length}개가 오른쪽 패널에 반영되었습니다.</span>
             </div>
           ` : ""}
@@ -799,7 +819,7 @@ export class DomUi {
       title: state.dialogue.title,
       controls: `<span class="pill">${state.dialogue.index + 1} / ${state.dialogue.lines.length}</span>`,
       body: `
-        <p class="dialogue-line">${currentLine}</p>
+        <p class="dialogue-line">${escapeHtml(currentLine)}</p>
         <div class="dialogue-footer">
           <p class="panel-note">Space 또는 Enter 로 계속 진행할 수 있습니다.</p>
           <button class="primary" data-dialogue-next>${state.dialogue.index >= state.dialogue.lines.length - 1 ? "닫기" : "다음"}</button>
@@ -848,7 +868,7 @@ export class DomUi {
           <h3>특수 기술</h3>
           ${skills.map((skill) => `
             <button data-battle-skill="${skill.id}" ${battle.player.currentMp < skill.manaCost ? "disabled" : ""}>
-              <strong>${skill.name}</strong>
+              <strong>${escapeHtml(skill.name)}</strong>
               <span>MP ${skill.manaCost}</span>
             </button>
           `).join("") || `<p class="panel-note">습득한 기술이 없습니다.</p>`}
@@ -857,14 +877,14 @@ export class DomUi {
           <h3>전술</h3>
           ${tactics.map((tactic) => `
             <button data-battle-tactic="${tactic.id}">
-              <strong>${tactic.name}</strong>
-              <span>${tactic.description}</span>
+              <strong>${escapeHtml(tactic.name)}</strong>
+              <span>${escapeHtml(tactic.description)}</span>
             </button>
           `).join("") || `<p class="panel-note">습득한 전술이 없습니다.</p>`}
         </div>
         <div class="action-stack battle-feed">
           <h3>최근 전황</h3>
-          ${battle.log.slice(-6).map((entry) => `<div class="battle-feed-item">${entry}</div>`).join("")}
+          ${battle.log.slice(-6).map((entry) => `<div class="battle-feed-item">${escapeHtml(entry)}</div>`).join("")}
         </div>
       `,
     });
@@ -895,16 +915,16 @@ export class DomUi {
       controls: `<span class="status-pill ${state.connectionStatus}">${nearbyPlayers.length} nearby</span>`,
       body: `
         <div class="presence-strip">
-          ${nearbyPlayers.map((presence) => `<span class="pill">${presence.username}</span>`).join("") || `<span class="pill muted">같은 씬의 다른 유저 없음</span>`}
+          ${nearbyPlayers.map((presence) => `<span class="pill">${escapeHtml(presence.username)}</span>`).join("") || `<span class="pill muted">같은 씬의 다른 유저 없음</span>`}
         </div>
         <div class="chat-list">
           ${state.chatMessages
             .slice(-8)
-            .map((message) => `<div class="chat-item"><strong>${message.username}</strong><span>${message.text}</span></div>`)
+            .map((message) => `<div class="chat-item"><strong>${escapeHtml(message.username)}</strong><span>${escapeHtml(message.text)}</span></div>`)
             .join("") || `<p class="panel-note">${state.connectionStatus === "online" ? "같은 씬의 유저에게 말을 걸 수 있습니다." : "실시간 연결이 복구되면 채팅이 다시 활성화됩니다."}</p>`}
         </div>
         <form class="chat-form">
-          <input name="text" placeholder="${chatPlaceholder}" ${canChat ? "" : "disabled"} />
+          <input name="text" placeholder="${escapeHtml(chatPlaceholder)}" ${canChat ? "" : "disabled"} />
           <button type="submit" class="primary" ${canChat ? "" : "disabled"}>전송</button>
         </form>
       `,
@@ -930,7 +950,7 @@ export class DomUi {
       controls: `<span class="pill">${Math.min(logs.length, 6)} entries</span>`,
       body: `
         <div class="log-list">
-          ${logs.slice(0, 6).map((entry) => `<div class="log-item">${entry}</div>`).join("") || `<p class="panel-note">저장, 이동, 전투 결과가 여기에 쌓입니다.</p>`}
+          ${logs.slice(0, 6).map((entry) => `<div class="log-item">${escapeHtml(entry)}</div>`).join("") || `<p class="panel-note">저장, 이동, 전투 결과가 여기에 쌓입니다.</p>`}
         </div>
       `,
     });

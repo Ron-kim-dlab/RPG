@@ -7,6 +7,10 @@ describe("web auth validation", () => {
     expect(validateAuthCredentials("a", "password123")).toBe("사용자 이름은 2자 이상이어야 합니다.");
   });
 
+  it("rejects usernames that could be interpreted as markup", () => {
+    expect(validateAuthCredentials("<script>", "password123")).toBe("사용자 이름은 영문, 숫자, 밑줄, 하이픈만 사용할 수 있습니다.");
+  });
+
   it("rejects passwords shorter than the minimum length", () => {
     expect(validateAuthCredentials("tester", "short")).toBe("비밀번호는 최소 8자 이상이어야 합니다.");
   });

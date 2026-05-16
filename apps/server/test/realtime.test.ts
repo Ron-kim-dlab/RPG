@@ -8,9 +8,44 @@ import { signToken } from "../src/http/auth";
 import { MemoryUserRepository } from "../src/storage/memoryRepository";
 
 function createWorld(): WorldContent {
+  const startLocationKey = "시작의 마을::마을 입구";
   return {
-    startLocationKey: "시작의 마을::마을 입구",
-    locations: {},
+    startLocationKey,
+    locations: {
+      [startLocationKey]: {
+        key: startLocationKey,
+        mainLocation: "시작의 마을",
+        subLocation: "마을 입구",
+        story: [],
+        connections: [],
+        scene: {
+          sceneId: "scene-start",
+          themeId: "village",
+          width: 1024,
+          height: 768,
+          tileSize: 32,
+          backgroundColor: "#10231b",
+          spawn: { x: 512, y: 636 },
+          portals: [],
+          npcs: [],
+          encounterZones: [],
+          collisionZones: [],
+          assets: {
+            layoutId: "town_gate",
+            mapJsonPath: "/maps/test.json",
+            terrainTexturePath: "/terrain.svg",
+            propsTexturePath: "/props.svg",
+            playerTexturePath: "/player.svg",
+            remotePlayerTexturePath: "/remote.svg",
+            npcTexturePath: "/npc.svg",
+            portalTexturePath: "/portal.svg",
+            encounterTexturePath: "/encounter.svg",
+            license: "placeholder",
+            attribution: "test",
+          },
+        },
+      },
+    },
     equipment: [],
     skills: [],
     tactics: [],
@@ -112,6 +147,85 @@ describe("realtime presence", () => {
       const leftEvent = onceEvent<string>(socketB, "presence:left");
       socketA.disconnect();
       expect(await leftEvent).toBe("hero-a");
+    } finally {
+      sockets.forEach((socket) => socket.disconnect());
+      await new Promise<void>((resolve, reject) => context.httpServer.close((error) => (error ? reject(error) : resolve())));
+    }
+  }, 15_000);
+
+  it("ignores malformed presence and chat payloads", async () => {
+    const repository = new MemoryUserRepository();
+    const world = createWorld();
+    const env = {
+      runtimeMode: "test" as const,
+      port: 0,
+      clientOrigin: "http://localhost:5173",
+      jwtSecret: "0123456789abcdef0123456789abcdef",
+      jwtExpiresIn: "7d",
+      passwordHashRounds: 10,
+      storageDriver: "memory" as const,
+    };
+
+    await repository.saveAccount({
+      username: "hero-a",
+      passwordHash: "plain",
+      player: createStarterPlayer("hero-a", world),
+    });
+    await repository.saveAccount({
+      username: "hero-b",
+      passwordHash: "plain",
+      player: createStarterPlayer("hero-b", world),
+    });
+
+    const context = await createAppContext({
+      env,
+      repository,
+      worldLoader: async () => world,
+    });
+
+    await new Promise<void>((resolve) => context.httpServer.listen(0, resolve));
+    const address = context.httpServer.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+
+    const sockets: ClientSocket[] = [];
+
+    try {
+      const observer = await connectClient(baseUrl, signToken(env, "hero-b"));
+      const actor = await connectClient(baseUrl, signToken(env, "hero-a"));
+      sockets.push(observer, actor);
+
+      const observerSnapshot = onceEvent<PresenceState[]>(observer, "presence:snapshot");
+      observer.emit("presence:join", { sceneId: "scene-start", x: 50, y: 60, facing: "left" });
+      await observerSnapshot;
+
+      let joined: PresenceState | null = null;
+      observer.on("presence:joined", (presence) => {
+        joined = presence as PresenceState;
+      });
+      actor.emit("presence:join", { sceneId: "unknown-scene", x: 10, y: 20, facing: "down" });
+      await waitForTick();
+      expect(joined).toBeNull();
+
+      const joinedByObserver = onceEvent<PresenceState>(observer, "presence:joined");
+      const actorSnapshot = onceEvent<PresenceState[]>(actor, "presence:snapshot");
+      actor.emit("presence:join", { sceneId: "scene-start", x: 10, y: 20, facing: "down" });
+      await Promise.all([joinedByObserver, actorSnapshot]);
+
+      let update: PresenceState | null = null;
+      observer.on("presence:update", (presence) => {
+        update = presence as PresenceState;
+      });
+      actor.emit("presence:update", { x: 5000, y: 20, facing: "down" });
+      await waitForTick();
+      expect(update).toBeNull();
+
+      let chat: { text: string } | null = null;
+      observer.on("chat:message", (message) => {
+        chat = message as { text: string };
+      });
+      actor.emit("chat:send", { text: "x".repeat(201) });
+      await waitForTick();
+      expect(chat).toBeNull();
     } finally {
       sockets.forEach((socket) => socket.disconnect());
       await new Promise<void>((resolve, reject) => context.httpServer.close((error) => (error ? reject(error) : resolve())));
