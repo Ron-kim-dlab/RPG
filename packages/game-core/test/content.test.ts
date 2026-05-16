@@ -5,7 +5,19 @@ import boss from "../../../game/boss.json";
 import equipment from "../../../game/equipment.json";
 import skill from "../../../game/skill.json";
 import tactics from "../../../game/tactics.json";
-import { buildWorldContentFromLegacy, validateWorldContent } from "../src";
+import { buildWorldContentFromLegacy, createSceneLayout, createScenePortalSlots, validateWorldContent } from "../src";
+
+function rectanglesOverlap(
+  left: { x: number; y: number; width: number; height: number },
+  right: { x: number; y: number; width: number; height: number },
+): boolean {
+  return (
+    left.x < right.x + right.width
+    && left.x + left.width > right.x
+    && left.y < right.y + right.height
+    && left.y + left.height > right.y
+  );
+}
 
 describe("legacy content conversion", () => {
   it("converts the current JSON dataset into valid shared world content", () => {
@@ -79,5 +91,18 @@ describe("legacy content conversion", () => {
     });
 
     expect(issues.some((entry) => entry.path.endsWith("assets.mapJsonPath"))).toBe(true);
+  });
+
+  it("creates non-overlapping portal slots when a layout needs more than four exits", () => {
+    const layout = createSceneLayout("plaza");
+    const slots = createScenePortalSlots(layout, 6);
+
+    expect(slots).toHaveLength(6);
+
+    slots.forEach((slot, index) => {
+      slots.slice(index + 1).forEach((otherSlot) => {
+        expect(rectanglesOverlap(slot, otherSlot)).toBe(false);
+      });
+    });
   });
 });

@@ -6,9 +6,44 @@ import { createAppContext } from "../src/app";
 import { MemoryUserRepository } from "../src/storage/memoryRepository";
 
 function createWorld(): WorldContent {
+  const startLocationKey = "시작의 마을::마을 입구";
   return {
-    startLocationKey: "시작의 마을::마을 입구",
-    locations: {},
+    startLocationKey,
+    locations: {
+      [startLocationKey]: {
+        key: startLocationKey,
+        mainLocation: "시작의 마을",
+        subLocation: "마을 입구",
+        story: [],
+        connections: [],
+        scene: {
+          sceneId: "scene-start",
+          themeId: "village",
+          width: 1024,
+          height: 768,
+          tileSize: 32,
+          backgroundColor: "#10231b",
+          spawn: { x: 512, y: 636 },
+          portals: [],
+          npcs: [],
+          encounterZones: [],
+          collisionZones: [],
+          assets: {
+            layoutId: "town_gate",
+            mapJsonPath: "/maps/test.json",
+            terrainTexturePath: "/terrain.svg",
+            propsTexturePath: "/props.svg",
+            playerTexturePath: "/player.svg",
+            remotePlayerTexturePath: "/remote.svg",
+            npcTexturePath: "/npc.svg",
+            portalTexturePath: "/portal.svg",
+            encounterTexturePath: "/encounter.svg",
+            license: "placeholder",
+            attribution: "test",
+          },
+        },
+      },
+    },
     equipment: [],
     skills: [],
     tactics: [],
@@ -204,6 +239,11 @@ describe("http api", () => {
       },
     });
 
+    await agent
+      .post("/auth/register")
+      .send({ username: "<script>", password: "secret123" })
+      .expect(400);
+
     const register = await agent
       .post("/auth/register")
       .send({ username: "hero", password: "secret123" })
@@ -221,6 +261,24 @@ describe("http api", () => {
       .expect(400);
 
     expect(malformedSave.body).toMatchObject({
+      success: false,
+      error: {
+        code: "validation_error",
+      },
+    });
+
+    const unknownContentSave = await agent
+      .post("/player/save")
+      .set("Authorization", `Bearer ${registerPayload.data.token}`)
+      .send({
+        player: {
+          ...createStarterPlayer("hero", world),
+          ownedEquipmentIds: ["missing-equipment"],
+        },
+      })
+      .expect(400);
+
+    expect(unknownContentSave.body).toMatchObject({
       success: false,
       error: {
         code: "validation_error",

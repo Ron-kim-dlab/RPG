@@ -1,20 +1,12 @@
 {
-  "version": 2,
-  "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node" },
-    { "src": "server.js", "use": "@vercel/node" },
-    { "src": "*.js", "use": "@vercel/static" },
-    { "src": "*.html", "use": "@vercel/static" },
-    { "src": "*.css", "use": "@vercel/static" },
-    { "src": "game/**/*", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/api/login", "dest": "/api/login.js" },
-    { "src": "/api/save", "dest": "/api/save.js" },
-    { "src": "/api/(.*)", "dest": "/api/$1.js" },
-    { "src": "/game/(.*)", "dest": "/game/$1" },
-    { "src": "/(.*\\.(js|css|html|json))", "dest": "/$1" },
-    { "src": "/", "dest": "/index.html" },
-    { "src": "/(.*)", "dest": "/$1" }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "corepack pnpm install --frozen-lockfile",
+  "buildCommand": "corepack pnpm --filter @rpg/web build",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

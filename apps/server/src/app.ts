@@ -63,7 +63,8 @@ export async function createAppContext(options: {
       throw createRouteError(404, "not_found", "플레이어를 찾을 수 없습니다.");
     }
 
-    const player = readPlayerSave(req.body) as PlayerSave;
+    const world = await worldLoader();
+    const player = readPlayerSave(req.body, world) as PlayerSave;
     if (!assertPlayerOwnership(req, player)) {
       throw createRouteError(403, "forbidden", "다른 플레이어의 세이브를 저장할 수 없습니다.");
     }
@@ -85,7 +86,8 @@ export async function createAppContext(options: {
     },
   });
 
-  configureRealtime(io, env);
+  const realtimeWorld = await worldLoader();
+  configureRealtime(io, env, realtimeWorld);
 
   return { app, httpServer, io };
 }

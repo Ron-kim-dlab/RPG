@@ -19,6 +19,13 @@ type SceneLayoutTemplate = {
   collisionZones: SceneRect[];
 };
 
+export type ScenePortalSlot = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export const SCENE_THEME_IDS: SceneThemeId[] = [
   "village",
   "grassland",
@@ -51,6 +58,22 @@ const COMMON_TEXTURES = {
   portalTexturePath: "/assets/placeholders/actors/portal.svg",
   encounterTexturePath: "/assets/placeholders/actors/encounter.svg",
 } as const;
+
+const HORIZONTAL_PORTAL = {
+  width: 88,
+  height: 24,
+} as const;
+
+const VERTICAL_PORTAL = {
+  width: 24,
+  height: 120,
+} as const;
+
+const PORTAL_EDGE_ORDER = ["top", "right", "bottom", "left"] as const;
+const PORTAL_HORIZONTAL_PADDING = 128;
+const PORTAL_VERTICAL_PADDING = 104;
+const PORTAL_TOP_Y = 22;
+const PORTAL_LEFT_X = 58;
 
 const SCENE_LAYOUTS: Record<SceneLayoutId, SceneLayoutTemplate> = {
   town_gate: {
@@ -259,6 +282,105 @@ export function createSceneLayout(layoutId: SceneLayoutId): SceneLayoutTemplate 
     portalSlots: template.portalSlots.map((slot) => ({ ...slot })),
     collisionZones: cloneZones(template.collisionZones),
   };
+}
+
+function distributeValues(count: number, start: number, end: number): number[] {
+  if (count <= 0) {
+    return [];
+  }
+
+  if (count === 1) {
+    return [Math.round((start + end) / 2)];
+  }
+
+  return Array.from({ length: count }, (_value, index) => {
+    const ratio = index / (count - 1);
+    return Math.round(start + (end - start) * ratio);
+  });
+}
+
+function buildHorizontalPortalSlots(sceneWidth: number, sceneHeight: number, count: number, edge: "top" | "bottom"): ScenePortalSlot[] {
+  if (count <= 0) {
+    return [];
+  }
+
+  const y = edge === "top"
+    ? PORTAL_TOP_Y
+    : sceneHeight - PORTAL_TOP_Y - HORIZONTAL_PORTAL.height;
+  const minCenter = PORTAL_HORIZONTAL_PADDING + HORIZONTAL_PORTAL.width / 2;
+  const maxCenter = sceneWidth - PORTAL_HORIZONTAL_PADDING - HORIZONTAL_PORTAL.width / 2;
+
+  return distributeValues(count, minCenter, maxCenter).map((centerX) => ({
+    x: centerX - HORIZONTAL_PORTAL.width / 2,
+    y,
+    width: HORIZONTAL_PORTAL.width,
+    height: HORIZONTAL_PORTAL.height,
+  }));
+}
+
+function buildVerticalPortalSlots(sceneWidth: number, sceneHeight: number, count: number, edge: "right" | "left"): ScenePortalSlot[] {
+  if (count <= 0) {
+    return [];
+  }
+
+  const x = edge === "left"
+    ? PORTAL_LEFT_X
+    : sceneWidth - PORTAL_LEFT_X - VERTICAL_PORTAL.width;
+  const minCenter = PORTAL_VERTICAL_PADDING + VERTICAL_PORTAL.height / 2;
+  const maxCenter = sceneHeight - PORTAL_VERTICAL_PADDING - VERTICAL_PORTAL.height / 2;
+
+  return distributeValues(count, minCenter, maxCenter).map((centerY) => ({
+    x,
+    y: centerY - VERTICAL_PORTAL.height / 2,
+    width: VERTICAL_PORTAL.width,
+    height: VERTICAL_PORTAL.height,
+  }));
+}
+
+export function createScenePortalSlots(
+  layout: { width: number; height: number; portalSlots: ScenePortalSlot[] },
+  portalCount: number,
+): ScenePortalSlot[] {
+  if (portalCount <= 0) {
+    return [];
+  }
+
+  if (portalCount <= layout.portalSlots.length) {
+    return layout.portalSlots.slice(0, portalCount).map((slot) => ({ ...slot }));
+  }
+
+  const countsByEdge = {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  };
+
+  for (let index = 0; index < portalCount; index += 1) {
+    const edge = PORTAL_EDGE_ORDER[index % PORTAL_EDGE_ORDER.length]!;
+    countsByEdge[edge] += 1;
+  }
+
+  const slotsByEdge = {
+    top: buildHorizontalPortalSlots(layout.width, layout.height, countsByEdge.top, "top"),
+    right: buildVerticalPortalSlots(layout.width, layout.height, countsByEdge.right, "right"),
+    bottom: buildHorizontalPortalSlots(layout.width, layout.height, countsByEdge.bottom, "bottom"),
+    left: buildVerticalPortalSlots(layout.width, layout.height, countsByEdge.left, "left"),
+  };
+
+  const edgeOffsets = {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  };
+
+  return Array.from({ length: portalCount }, (_value, index) => {
+    const edge = PORTAL_EDGE_ORDER[index % PORTAL_EDGE_ORDER.length]!;
+    const nextSlot = slotsByEdge[edge][edgeOffsets[edge]]!;
+    edgeOffsets[edge] += 1;
+    return nextSlot;
+  });
 }
 
 export function getSceneMapJsonPath(layoutId: SceneLayoutId): string {
