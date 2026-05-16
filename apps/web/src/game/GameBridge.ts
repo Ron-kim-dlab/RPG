@@ -2,6 +2,7 @@ import type Phaser from "phaser";
 import type { DialogueNpc, EncounterZone, Facing, PlayerSave, PresenceState, WorldContent } from "@rpg/game-core";
 import type { FieldPrompt, OverlayMode } from "../gameplay";
 import type { OverworldScene } from "./OverworldScene";
+import { INITIAL_SCENE, shouldDisableGlobalKeyboardCapture, type ManagedSceneKey } from "./sceneFlow";
 
 type BridgeCallbacks = {
   canMove: () => boolean;
@@ -17,7 +18,7 @@ type BridgeCallbacks = {
 };
 
 export class GameBridge {
-  private activeScene: "loading" | "login" | "overworld" = "loading";
+  private activeScene: ManagedSceneKey = INITIAL_SCENE;
 
   private constructor(
     private readonly game: Phaser.Game,
@@ -26,6 +27,11 @@ export class GameBridge {
   ) {}
 
   static async create(container: HTMLElement, callbacks: BridgeCallbacks): Promise<GameBridge> {
+    let notifyBootComplete: (() => void) | null = null;
+    const bootCompleted = new Promise<void>((resolve) => {
+      notifyBootComplete = resolve;
+    });
+
     const [
       PhaserModule,
       { BootScene },
@@ -43,19 +49,26 @@ export class GameBridge {
     const loadingScene = new LoadingScene();
     const loginScene = new LoginScene();
     const overworldScene = new OverworldScene();
+    const bootScene = new BootScene(() => {
+      notifyBootComplete?.();
+    });
     const game = new PhaserModule.default.Game({
       type: PhaserModule.default.AUTO,
       parent: container,
       width: 1024,
       height: 768,
       backgroundColor: "#1f2937",
-      scene: [new BootScene(), loadingScene, loginScene, overworldScene],
+      scene: [bootScene, loadingScene, loginScene, overworldScene],
       render: {
         pixelArt: true,
       },
     });
 
-    return new GameBridge(game, overworldScene, callbacks);
+    await bootCompleted;
+
+    const bridge = new GameBridge(game, overworldScene, callbacks);
+    bridge.syncGlobalCapture(bridge.activeScene);
+    return bridge;
   }
 
   sync(world: WorldContent | null, player: PlayerSave | null, nearbyPlayers: PresenceState[]): void {
@@ -84,6 +97,22 @@ export class GameBridge {
 
     this.game.scene.start(nextScene);
     this.activeScene = nextScene;
+    this.syncGlobalCapture(nextScene);
+  }
+
+  private syncGlobalCapture(activeScene: ManagedSceneKey): void {
+    const keyboardManager = this.game.input.keyboard;
+    if (!keyboardManager) {
+      return;
+    }
+
+    if (shouldDisableGlobalKeyboardCapture(activeScene)) {
+      keyboardManager.preventDefault = false;
+      this.overworldScene.input.keyboard?.resetKeys();
+      return;
+    }
+
+    keyboardManager.preventDefault = true;
   }
 }
 

@@ -1,8 +1,9 @@
 import Phaser from "phaser";
 import { getSceneAssetManifest } from "@rpg/game-core";
+import { INITIAL_SCENE } from "./sceneFlow";
 
 export class BootScene extends Phaser.Scene {
-  constructor() {
+  constructor(private readonly onBootComplete: () => void = () => {}) {
     super("boot");
   }
 
@@ -18,6 +19,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start("overworld");
+    this.scene.start(INITIAL_SCENE);
+    this.onBootComplete();
   }
 }
