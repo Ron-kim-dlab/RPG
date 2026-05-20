@@ -14,11 +14,13 @@ import type {
 import {
   createBattle,
   ensureStoryState,
+  applyEquipmentSelection,
   getMaxHp,
   getMaxMp,
   PLAYER_AVATAR_IDS,
   performBattleAction,
   pickRandom,
+  toggleEquippedEquipmentId,
 } from "@rpg/game-core";
 import { validateAuthCredentials } from "./auth";
 import { createBattleReport, deriveOverlayMode, didSceneChange } from "./gameplay";
@@ -580,12 +582,10 @@ export class AppController {
       return;
     }
 
-    const equipped = state.player.equippedEquipmentIds.includes(equipmentId)
-      ? []
-      : [equipmentId];
+    const equipped = toggleEquippedEquipmentId(state.player, equipmentId, this.equipmentMap);
 
     this.store.setState({
-      player: this.applyEquipmentSelection(state.player, equipped),
+      player: applyEquipmentSelection(state.player, equipped, this.equipmentMap),
     });
     this.store.pushLog("장비 구성이 갱신되었습니다.");
     await this.savePlayer();
@@ -769,23 +769,4 @@ export class AppController {
     return document.activeElement;
   }
 
-  private applyEquipmentSelection(player: PlayerSave, equippedEquipmentIds: string[]): PlayerSave {
-    const previousEquipped = player.equippedEquipmentIds
-      .map((id) => this.equipmentMap[id])
-      .filter((item): item is EquipmentDefinition => Boolean(item));
-    const nextEquipped = equippedEquipmentIds
-      .map((id) => this.equipmentMap[id])
-      .filter((item): item is EquipmentDefinition => Boolean(item));
-
-    const baseAttack = player.attack - previousEquipped.reduce((total, item) => total + item.attackBonus, 0);
-    const nextAttack = baseAttack + nextEquipped.reduce((total, item) => total + item.attackBonus, 0);
-    const nextAccuracy = nextEquipped[0]?.accuracy ?? 0.8;
-
-    return {
-      ...player,
-      attack: nextAttack,
-      accuracy: nextAccuracy,
-      equippedEquipmentIds,
-    };
-  }
 }

@@ -34,6 +34,7 @@ describe("legacy content conversion", () => {
     expect(Object.keys(world.locations).length).toBeGreaterThan(10);
     expect(world.skills.every((entry) => entry.effects.length > 0)).toBe(true);
     expect(world.equipment.every((entry) => entry.effects.length >= 0)).toBe(true);
+    expect(world.equipment.every((entry) => entry.itemType === "equipment" && Boolean(entry.slot))).toBe(true);
     expect(Object.values(world.locations).every((location) => location.scene.assets.mapJsonPath.endsWith(".json"))).toBe(true);
     expect(Object.values(world.locations).every((location) => location.scene.collisionZones.length > 0)).toBe(true);
     expect(validateWorldContent(world)).toEqual([]);

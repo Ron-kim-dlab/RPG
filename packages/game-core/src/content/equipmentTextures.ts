@@ -1,3 +1,5 @@
+import type { EquipmentSlot } from "../types";
+
 const GENERATED_ITEM_ROOT = "/assets/generated/items";
 
 export const EQUIPMENT_TEXTURE_IDS = [
@@ -78,8 +80,47 @@ const EQUIPMENT_NAME_TO_TEXTURE_ID: Record<string, EquipmentTextureId> = {
   "우주의 중력석 반지": "cosmic-gravity-ring",
 };
 
+const EQUIPMENT_TEXTURE_ID_TO_SLOT: Record<EquipmentTextureId, EquipmentSlot> = {
+  "village-sword": "weapon",
+  "healing-sword": "weapon",
+  "wooden-hammer": "weapon",
+  "wooden-shield": "hands",
+  "simple-bow": "weapon",
+  "heavy-axe": "weapon",
+  "iron-armor": "armor",
+  "desert-longsword": "weapon",
+  "sand-hat": "head",
+  "sunlight-hat": "head",
+  "mountain-spear": "weapon",
+  "stone-gauntlet": "hands",
+  "bamboo-spear": "weapon",
+  "crocodile-tooth-spear": "weapon",
+  "water-droplet-sword": "weapon",
+  "river-sword": "weapon",
+  "deep-sea-predator-blade": "weapon",
+  "kraken-tentacle-whip": "weapon",
+  "sky-sword": "weapon",
+  "light-sword": "weapon",
+  "grassland-dagger": "weapon",
+  "peace-guard-ring": "accessory",
+  "neighbor-longbow": "weapon",
+  "desert-sabre": "weapon",
+  "sand-buckler": "hands",
+  "mountain-battle-axe": "weapon",
+  "snow-marching-boots": "feet",
+  "swamp-thorn-spear": "weapon",
+  "upstream-whirlpool-amulet": "accessory",
+  "deep-sea-shell-armor": "armor",
+  "sky-lightning-spear": "weapon",
+  "cosmic-gravity-ring": "accessory",
+};
+
 export function getEquipmentTextureId(name: string): EquipmentTextureId {
   return EQUIPMENT_NAME_TO_TEXTURE_ID[name] ?? DEFAULT_EQUIPMENT_TEXTURE_ID;
+}
+
+export function getEquipmentSlot(name: string): EquipmentSlot {
+  return EQUIPMENT_TEXTURE_ID_TO_SLOT[getEquipmentTextureId(name)] ?? "weapon";
 }
 
 export function getEquipmentTexturePath(name: string): string {

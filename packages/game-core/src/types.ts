@@ -53,9 +53,13 @@ export type SkillDefinition = {
   effects: EffectDefinition[];
 };
 
+export type EquipmentSlot = "weapon" | "armor" | "head" | "hands" | "feet" | "accessory";
+
 export type EquipmentDefinition = {
   id: string;
   name: string;
+  itemType: "equipment";
+  slot: EquipmentSlot;
   texturePath: string;
   village?: string;
   cost: number;

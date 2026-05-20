@@ -1,5 +1,12 @@
-import type { Facing, PlayerSave, StoryState, WorldContent } from "@rpg/game-core";
-import { getMaxHp, getMaxMp, MAX_EXPERIENCE, normalizePlayerPosition } from "@rpg/game-core";
+import type { EquipmentDefinition, Facing, PlayerSave, StoryState, WorldContent } from "@rpg/game-core";
+import {
+  getMaxHp,
+  getMaxMp,
+  MAX_EXPERIENCE,
+  normalizeEquippedEquipmentIds,
+  normalizePlayerPosition,
+  sumEquipmentAttackBonus,
+} from "@rpg/game-core";
 import { createRouteError } from "./response";
 
 type CredentialsInput = {
@@ -297,6 +304,12 @@ export function readPlayerSave(body: unknown, world: WorldContent): PlayerSave {
     issues.push(`player.equippedEquipmentIds contains unowned ids: ${unownedEquipped.join(", ")}.`);
   }
 
+  const equipmentById: Record<string, EquipmentDefinition> = Object.fromEntries(world.equipment.map((item) => [item.id, item]));
+  const normalizedEquippedEquipmentIds = normalizeEquippedEquipmentIds(equippedEquipmentIds, equipmentById);
+  if (normalizedEquippedEquipmentIds.length !== equippedEquipmentIds.length) {
+    issues.push("player.equippedEquipmentIds contains more than one item for the same equipment slot.");
+  }
+
   if (!FACING_VALUES.has(candidate.facing as Facing)) {
     issues.push("player.facing must be one of: up, down, left, right.");
   }
@@ -308,11 +321,7 @@ export function readPlayerSave(body: unknown, world: WorldContent): PlayerSave {
   const level = clampInteger(Number(candidate.level), 1, MAX_LEVEL);
   const maxHp = getMaxHp(level);
   const maxMp = getMaxMp(level);
-  const equipmentById = new Map(world.equipment.map((item) => [item.id, item]));
-  const equippedAttackBonus = equippedEquipmentIds.reduce(
-    (total, id) => total + (equipmentById.get(id)?.attackBonus ?? 0),
-    0,
-  );
+  const equippedAttackBonus = sumEquipmentAttackBonus(normalizedEquippedEquipmentIds, equipmentById);
   const maxAttack = baseAttackForLevel(level) + equippedAttackBonus;
   const safeLocation = world.locations[locationKey] ? locationKey : world.startLocationKey;
   const safeVisitedLocationKeys = uniqueStrings([...visitedLocationKeys, safeLocation]);
@@ -349,7 +358,7 @@ export function readPlayerSave(body: unknown, world: WorldContent): PlayerSave {
       },
     },
     ownedEquipmentIds,
-    equippedEquipmentIds,
+    equippedEquipmentIds: normalizedEquippedEquipmentIds,
     learnedSkillIds,
     learnedTacticIds,
     questCompletion,
