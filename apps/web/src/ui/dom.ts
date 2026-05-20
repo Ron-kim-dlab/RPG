@@ -568,12 +568,13 @@ export class DomUi {
     equipmentForLocation: EquipmentDefinition[],
     skillForLocation: SkillDefinition[],
     equipped: EquipmentDefinition[],
+    ownedEquipment: EquipmentDefinition[],
     learnedSkills: SkillDefinition[],
     learnedTactics: TacticDefinition[],
   ): void {
     this.renderAuth(state);
     this.renderHud(state, currentLocation);
-    this.renderActions(state, currentLocation, equipmentForLocation, skillForLocation, equipped);
+    this.renderActions(state, currentLocation, equipmentForLocation, skillForLocation, equipped, ownedEquipment);
     this.renderDialogue(state);
     this.renderBattle(state.battle, learnedSkills, learnedTactics);
     this.renderChat(state);
@@ -713,6 +714,7 @@ export class DomUi {
     equipmentForLocation: EquipmentDefinition[],
     skillsForLocation: SkillDefinition[],
     equipped: EquipmentDefinition[],
+    ownedEquipment: EquipmentDefinition[],
   ): void {
     const { player, battle, battleReport } = state;
     if (!player || !currentLocation) {
@@ -732,10 +734,15 @@ export class DomUi {
         });
         return `
           <button class="dock-card" data-equipment="${escapeHtml(item.id)}">
-            <strong>${escapeHtml(card.title)}</strong>
-            <span class="card-description">${escapeHtml(card.description)}</span>
-            <span class="card-meta">${escapeHtml(card.meta)}</span>
-            <span class="card-action">${escapeHtml(card.action)}</span>
+            <span class="dock-card-media">
+              <img src="${escapeHtml(item.texturePath)}" alt="" loading="lazy">
+            </span>
+            <span class="dock-card-content">
+              <strong>${escapeHtml(card.title)}</strong>
+              <span class="card-description">${escapeHtml(card.description)}</span>
+              <span class="card-meta">${escapeHtml(card.meta)}</span>
+              <span class="card-action">${escapeHtml(card.action)}</span>
+            </span>
           </button>
         `;
       })
@@ -758,6 +765,57 @@ export class DomUi {
       ? equipped.map((item) => `<span class="pill">${escapeHtml(item.name)}</span>`).join("")
       : `<span class="pill muted">장착 없음</span>`;
 
+    const equippedSlots = equipped.length > 0
+      ? equipped.map((item) => `
+        <button
+          class="equipment-slot"
+          type="button"
+          data-inventory-equipment="${escapeHtml(item.id)}"
+          title="${escapeHtml(`${item.name} 장착 해제`)}"
+          aria-pressed="true"
+        >
+          <span class="inventory-icon">
+            <img src="${escapeHtml(item.texturePath)}" alt="" loading="lazy">
+          </span>
+          <span class="inventory-copy">
+            <strong>${escapeHtml(item.name)}</strong>
+            <span>공격 +${item.attackBonus} · 명중 ${Math.round(item.accuracy * 100)}%</span>
+          </span>
+        </button>
+      `).join("")
+      : `
+        <div class="equipment-slot empty">
+          <span class="inventory-icon empty"></span>
+          <span class="inventory-copy">
+            <strong>비어 있음</strong>
+            <span>착용한 장비가 없습니다.</span>
+          </span>
+        </div>
+      `;
+    const inventoryItems = ownedEquipment.length > 0
+      ? ownedEquipment.map((item) => {
+        const equippedState = player.equippedEquipmentIds.includes(item.id);
+        return `
+          <button
+            class="inventory-item ${equippedState ? "equipped" : ""}"
+            type="button"
+            data-inventory-equipment="${escapeHtml(item.id)}"
+            title="${escapeHtml(`${item.name} 장착/해제`)}"
+            aria-pressed="${String(equippedState)}"
+          >
+            <span class="inventory-icon">
+              <img src="${escapeHtml(item.texturePath)}" alt="" loading="lazy">
+            </span>
+            <span class="inventory-copy">
+              <strong>${escapeHtml(item.name)}</strong>
+              <span>공격 +${item.attackBonus} · 명중 ${Math.round(item.accuracy * 100)}%</span>
+            </span>
+            ${equippedState ? `<span class="inventory-badge">E</span>` : ""}
+          </button>
+        `;
+      }).join("")
+      : `<div class="inventory-empty">보유한 아이템이 없습니다.</div>`;
+
     const hasContextActions = restingVisible || equipmentButtons || skillButtons;
     this.actionPanel.classList.add("visible");
     this.actionPanel.innerHTML = this.renderPanelFrame({
@@ -771,6 +829,26 @@ export class DomUi {
         </div>
       `,
       body: `
+        <div class="equipment-layout">
+          <section class="equipment-board" aria-label="장비창">
+            <div class="inventory-section-heading">
+              <h3>장비</h3>
+              <span class="pill">${equipped.length} / 1</span>
+            </div>
+            <div class="equipment-slots">
+              ${equippedSlots}
+            </div>
+          </section>
+          <section class="inventory-board" aria-label="인벤토리">
+            <div class="inventory-section-heading">
+              <h3>인벤토리</h3>
+              <span class="pill">${ownedEquipment.length}</span>
+            </div>
+            <div class="inventory-grid">
+              ${inventoryItems}
+            </div>
+          </section>
+        </div>
         <div class="dock-grid">
           ${restingVisible ? `<button class="dock-card accent" data-rest><strong>숙박</strong><span>20 코인으로 HP/MP 회복</span></button>` : ""}
           ${equipmentButtons}
@@ -792,6 +870,10 @@ export class DomUi {
       const equipmentId = button.dataset.equipment!;
       const owned = player.ownedEquipmentIds.includes(equipmentId);
       button.onclick = () => (owned ? this.callbacks.onToggleEquip(equipmentId) : this.callbacks.onBuyEquipment(equipmentId));
+    });
+    this.actionPanel.querySelectorAll<HTMLButtonElement>("[data-inventory-equipment]").forEach((button) => {
+      const equipmentId = button.dataset.inventoryEquipment!;
+      button.ondblclick = () => this.callbacks.onToggleEquip(equipmentId);
     });
     this.actionPanel.querySelectorAll<HTMLButtonElement>("[data-skill]").forEach((button) => {
       const skillId = button.dataset.skill!;

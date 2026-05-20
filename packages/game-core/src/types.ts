@@ -56,6 +56,7 @@ export type SkillDefinition = {
 export type EquipmentDefinition = {
   id: string;
   name: string;
+  texturePath: string;
   village?: string;
   cost: number;
   attackBonus: number;

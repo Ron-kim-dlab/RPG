@@ -1,5 +1,6 @@
 import type { CollisionZone, SceneAssetBundle, SceneLayoutId, SceneThemeId } from "../types";
 import { getEnemyTexturePaths } from "./enemyTextures";
+import { getEquipmentTexturePaths } from "./equipmentTextures";
 
 type SceneRect = {
   id: string;
@@ -503,6 +504,7 @@ export function getSceneAssetManifest(): { jsonPaths: string[]; texturePaths: st
       ...SCENE_THEME_IDS.map((themeId) => getSceneTerrainTexturePath(themeId)),
       ...getCommonSceneTexturePaths(),
       ...getEnemyTexturePaths(),
+      ...getEquipmentTexturePaths(),
     ],
   };
 }

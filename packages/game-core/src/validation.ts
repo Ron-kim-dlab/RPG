@@ -19,6 +19,7 @@ import {
   SCENE_THEME_IDS,
 } from "./content/sceneMetadata";
 import { getEnemyTexturePaths } from "./content/enemyTextures";
+import { getEquipmentTexturePaths } from "./content/equipmentTextures";
 
 export type ValidationIssue = {
   path: string;
@@ -33,6 +34,7 @@ const VALID_SCENE_LAYOUTS = new Set(SCENE_LAYOUT_IDS);
 const VALID_SCENE_THEMES = new Set(SCENE_THEME_IDS);
 const VALID_COMMON_SCENE_TEXTURES = new Set(getCommonSceneTexturePaths());
 const VALID_ENEMY_TEXTURES = new Set(getEnemyTexturePaths());
+const VALID_EQUIPMENT_TEXTURES = new Set(getEquipmentTexturePaths());
 
 function issue(path: string, message: string): ValidationIssue {
   return { path, message };
@@ -151,6 +153,10 @@ function validateEquipment(equipment: EquipmentDefinition, path: string): Valida
 
   if (!equipment.name) {
     issues.push(issue(`${path}.name`, "Equipment name is required."));
+  }
+
+  if (!VALID_EQUIPMENT_TEXTURES.has(equipment.texturePath)) {
+    issues.push(issue(`${path}.texturePath`, "Equipment texture path is outside the shared item asset set."));
   }
 
   issues.push(...validateEffects(equipment.effects, `${path}.effects`));

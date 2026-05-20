@@ -163,6 +163,9 @@ export class AppController {
       const equipped = state.player
         ? state.player.equippedEquipmentIds.map((id) => equipmentMap[id]).filter((value): value is EquipmentDefinition => Boolean(value))
         : [];
+      const ownedEquipment = state.player
+        ? state.player.ownedEquipmentIds.map((id) => equipmentMap[id]).filter((value): value is EquipmentDefinition => Boolean(value))
+        : [];
       const learnedSkills = state.player
         ? state.player.learnedSkillIds.map((id) => skillMap[id]).filter((value): value is SkillDefinition => Boolean(value))
         : [];
@@ -170,7 +173,7 @@ export class AppController {
         ? state.player.learnedTacticIds.map((id) => tacticMap[id]).filter((value): value is TacticDefinition => Boolean(value))
         : [];
 
-      this.ui.render(state, currentLocation, equipmentForLocation, skillsForLocation, equipped, learnedSkills, learnedTactics);
+      this.ui.render(state, currentLocation, equipmentForLocation, skillsForLocation, equipped, ownedEquipment, learnedSkills, learnedTactics);
       this.game?.sync(state.world, state.player, state.presence);
     });
 

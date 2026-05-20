@@ -504,6 +504,41 @@ button {
   text-align: left;
 }
 
+button.dock-card[data-equipment] {
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.dock-card-media,
+.inventory-icon {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dock-card-media {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.dock-card-media img,
+.inventory-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.32));
+}
+
+.dock-card-content {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
 .dock-card strong {
   font-size: 1rem;
 }
@@ -547,6 +582,148 @@ button {
 
 .report-card span + span {
   margin-top: 2px;
+}
+
+.action-panel .panel-shell-body {
+  max-height: min(52vh, 560px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.equipment-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.9fr) minmax(280px, 1.45fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.equipment-board,
+.inventory-board {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.inventory-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inventory-section-heading h3 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.equipment-slots {
+  display: grid;
+  gap: 8px;
+}
+
+.equipment-slot,
+.inventory-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text-main);
+  text-align: left;
+}
+
+.inventory-item {
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.inventory-item:hover,
+.equipment-slot:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.equipment-slot.empty {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.equipment-slot.empty:hover {
+  transform: none;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+  gap: 8px;
+}
+
+.inventory-item.equipped,
+.equipment-slot:not(.empty) {
+  border-color: rgba(242, 204, 143, 0.5);
+  background: rgba(242, 204, 143, 0.12);
+}
+
+.inventory-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+}
+
+.inventory-icon.empty::after {
+  content: "";
+  width: 24px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.inventory-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.inventory-copy strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.92rem;
+}
+
+.inventory-copy span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.inventory-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  color: #1f1b16;
+  font-family: "Space Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.inventory-empty {
+  grid-column: 1 / -1;
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .dialogue-line {
@@ -811,6 +988,16 @@ button {
   .dock-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  .action-panel .panel-shell-body {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .equipment-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -833,8 +1020,13 @@ button {
   .battle-stats,
   .battle-showcase,
   .meter-grid,
-  .dock-grid {
+  .dock-grid,
+  .inventory-grid {
     grid-template-columns: 1fr;
+  }
+
+  button.dock-card[data-equipment] {
+    grid-template-columns: 44px minmax(0, 1fr);
   }
 
   .battle-portrait {
