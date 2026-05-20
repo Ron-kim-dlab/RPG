@@ -21,7 +21,7 @@ import {
   getSceneThemeId,
 } from "./sceneMetadata";
 import { getEnemyTexturePath } from "./enemyTextures";
-import { getEquipmentTexturePath } from "./equipmentTextures";
+import { getEquipmentSlot, getEquipmentTexturePath } from "./equipmentTextures";
 import { toLocationKey, toStableId } from "../utils/id";
 import { assertValidWorldContent } from "../validation";
 
@@ -454,6 +454,8 @@ export function buildWorldContentFromLegacy(input: {
   const equipment: EquipmentDefinition[] = input.equipment.map((item) => ({
     id: toStableId("equipment", item.이름),
     name: item.이름,
+    itemType: "equipment",
+    slot: getEquipmentSlot(String(Object.values(item)[0] ?? "")),
     texturePath: getEquipmentTexturePath(item["이름"]),
     village: item.판매마을,
     cost: item.cost,

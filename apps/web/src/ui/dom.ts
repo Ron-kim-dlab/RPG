@@ -6,6 +6,7 @@ import type {
   SkillDefinition,
   TacticDefinition,
 } from "@rpg/game-core";
+import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOT_ORDER } from "@rpg/game-core";
 import { AUTH_PASSWORD_MIN_LENGTH, AUTH_USERNAME_MAX_LENGTH, AUTH_USERNAME_MIN_LENGTH } from "../auth";
 import type { AppState } from "../state/store";
 import {
@@ -765,42 +766,51 @@ export class DomUi {
       ? equipped.map((item) => `<span class="pill">${escapeHtml(item.name)}</span>`).join("")
       : `<span class="pill muted">장착 없음</span>`;
 
-    const equippedSlots = equipped.length > 0
-      ? equipped.map((item) => `
+    const equippedBySlot = new Map(equipped.map((item) => [item.slot, item]));
+    const equippedSlots = EQUIPMENT_SLOT_ORDER.map((slot) => {
+      const item = equippedBySlot.get(slot);
+      const slotLabel = EQUIPMENT_SLOT_LABELS[slot];
+      if (!item) {
+        return `
+          <div class="equipment-slot empty" data-equipment-slot="${escapeHtml(slot)}">
+            <span class="inventory-icon empty"></span>
+            <span class="inventory-copy">
+              <strong>${escapeHtml(slotLabel)}</strong>
+              <span>비어 있음</span>
+            </span>
+          </div>
+        `;
+      }
+
+      return `
         <button
           class="equipment-slot"
           type="button"
           data-inventory-equipment="${escapeHtml(item.id)}"
-          title="${escapeHtml(`${item.name} 장착 해제`)}"
+          data-equipment-slot="${escapeHtml(slot)}"
+          title="${escapeHtml(`${slotLabel}: ${item.name} 장착 해제`)}"
           aria-pressed="true"
         >
           <span class="inventory-icon">
             <img src="${escapeHtml(item.texturePath)}" alt="" loading="lazy">
           </span>
           <span class="inventory-copy">
-            <strong>${escapeHtml(item.name)}</strong>
-            <span>공격 +${item.attackBonus} · 명중 ${Math.round(item.accuracy * 100)}%</span>
+            <strong>${escapeHtml(slotLabel)}</strong>
+            <span>${escapeHtml(item.name)} · 공격 +${item.attackBonus} · 명중 ${Math.round(item.accuracy * 100)}%</span>
           </span>
         </button>
-      `).join("")
-      : `
-        <div class="equipment-slot empty">
-          <span class="inventory-icon empty"></span>
-          <span class="inventory-copy">
-            <strong>비어 있음</strong>
-            <span>착용한 장비가 없습니다.</span>
-          </span>
-        </div>
       `;
+    }).join("");
     const inventoryItems = ownedEquipment.length > 0
       ? ownedEquipment.map((item) => {
         const equippedState = player.equippedEquipmentIds.includes(item.id);
+        const slotLabel = EQUIPMENT_SLOT_LABELS[item.slot];
         return `
           <button
             class="inventory-item ${equippedState ? "equipped" : ""}"
             type="button"
             data-inventory-equipment="${escapeHtml(item.id)}"
-            title="${escapeHtml(`${item.name} 장착/해제`)}"
+            title="${escapeHtml(`${slotLabel}: ${item.name}`)}"
             aria-pressed="${String(equippedState)}"
           >
             <span class="inventory-icon">
@@ -808,7 +818,7 @@ export class DomUi {
             </span>
             <span class="inventory-copy">
               <strong>${escapeHtml(item.name)}</strong>
-              <span>공격 +${item.attackBonus} · 명중 ${Math.round(item.accuracy * 100)}%</span>
+              <span>${escapeHtml(slotLabel)} · 공격 +${item.attackBonus} · 명중 ${Math.round(item.accuracy * 100)}%</span>
             </span>
             ${equippedState ? `<span class="inventory-badge">E</span>` : ""}
           </button>
@@ -833,7 +843,7 @@ export class DomUi {
           <section class="equipment-board" aria-label="장비창">
             <div class="inventory-section-heading">
               <h3>장비</h3>
-              <span class="pill">${equipped.length} / 1</span>
+              <span class="pill">${equipped.length} / ${EQUIPMENT_SLOT_ORDER.length}</span>
             </div>
             <div class="equipment-slots">
               ${equippedSlots}

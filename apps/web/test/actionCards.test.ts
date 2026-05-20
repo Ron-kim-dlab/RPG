@@ -4,6 +4,8 @@ import { describeEquipmentActionCard, describeSkillActionCard } from "../src/ui/
 
 const equipment: EquipmentDefinition = {
   id: "equipment-bronze-sword",
+  itemType: "equipment",
+  slot: "weapon",
   name: "청동 검",
   texturePath: "/assets/generated/items/item-village-sword.png",
   village: "시작의 마을",
@@ -31,6 +33,7 @@ describe("shop action card helpers", () => {
     const card = describeEquipmentActionCard(equipment, { owned: false, equipped: false });
 
     expect(card.description).toBe(equipment.description);
+    expect(card.meta).toContain("무기");
     expect(card.meta).toContain("공격 +7");
     expect(card.meta).toContain("명중 92%");
     expect(card.action).toBe("120 코인 구매");

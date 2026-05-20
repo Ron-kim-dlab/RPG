@@ -1,9 +1,27 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import type { ApiResponse, BootstrapPayload, PlayerPayload, SessionPayload, WorldContent } from "@rpg/game-core";
+import type { ApiResponse, BootstrapPayload, EquipmentDefinition, PlayerPayload, SessionPayload, WorldContent } from "@rpg/game-core";
 import { createStarterPlayer } from "@rpg/game-core";
 import { createAppContext } from "../src/app";
 import { MemoryUserRepository } from "../src/storage/memoryRepository";
+
+const TEST_EQUIPMENT_TEXTURE = "/assets/generated/items/item-village-sword.png";
+
+function makeEquipment(id: string, slot: EquipmentDefinition["slot"], attackBonus: number): EquipmentDefinition {
+  return {
+    id,
+    itemType: "equipment",
+    slot,
+    name: id,
+    texturePath: TEST_EQUIPMENT_TEXTURE,
+    cost: 0,
+    attackBonus,
+    manaCost: 0,
+    accuracy: 0.8,
+    description: id,
+    effects: [],
+  };
+}
 
 function createWorld(): WorldContent {
   const startLocationKey = "시작의 마을::마을 입구";
@@ -44,7 +62,10 @@ function createWorld(): WorldContent {
         },
       },
     },
-    equipment: [],
+    equipment: [
+      makeEquipment("equipment-sword", "weapon", 5),
+      makeEquipment("equipment-bow", "weapon", 7),
+    ],
     skills: [],
     tactics: [],
     enemies: {},
@@ -284,6 +305,26 @@ describe("http api", () => {
         code: "validation_error",
       },
     });
+
+    const duplicateSlotSave = await agent
+      .post("/player/save")
+      .set("Authorization", `Bearer ${registerPayload.data.token}`)
+      .send({
+        player: {
+          ...createStarterPlayer("hero", world),
+          ownedEquipmentIds: ["equipment-sword", "equipment-bow"],
+          equippedEquipmentIds: ["equipment-sword", "equipment-bow"],
+        },
+      })
+      .expect(400);
+
+    expect(duplicateSlotSave.body).toMatchObject({
+      success: false,
+      error: {
+        code: "validation_error",
+      },
+    });
+    expect(JSON.stringify(duplicateSlotSave.body)).toContain("same equipment slot");
   });
 
   it("normalizes a blocked saved position to the scene spawn on player load", async () => {

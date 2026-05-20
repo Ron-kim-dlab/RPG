@@ -1,4 +1,5 @@
 import type { EquipmentDefinition, SkillDefinition } from "@rpg/game-core";
+import { EQUIPMENT_SLOT_LABELS } from "@rpg/game-core";
 
 export type ShopActionCard = {
   title: string;
@@ -20,6 +21,7 @@ export function describeEquipmentActionCard(
   options: { owned: boolean; equipped: boolean },
 ): ShopActionCard {
   const metaSegments = [
+    EQUIPMENT_SLOT_LABELS[equipment.slot],
     equipment.attackBonus !== 0 ? `공격 ${equipment.attackBonus > 0 ? `+${equipment.attackBonus}` : equipment.attackBonus}` : "",
     equipment.manaCost > 0 ? `MP ${equipment.manaCost}` : "",
     formatAccuracy(equipment.accuracy),

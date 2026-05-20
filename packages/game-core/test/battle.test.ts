@@ -102,6 +102,8 @@ function makeEquipment(id: string, effect: EffectDefinition) {
   return {
     id,
     name: id,
+    itemType: "equipment" as const,
+    slot: "accessory" as const,
     texturePath: TEST_EQUIPMENT_TEXTURE,
     cost: 0,
     attackBonus: 0,

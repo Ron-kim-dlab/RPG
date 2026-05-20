@@ -20,6 +20,7 @@ import {
 } from "./content/sceneMetadata";
 import { getEnemyTexturePaths } from "./content/enemyTextures";
 import { getEquipmentTexturePaths } from "./content/equipmentTextures";
+import { EQUIPMENT_SLOT_ORDER } from "./engine/equipment";
 
 export type ValidationIssue = {
   path: string;
@@ -35,6 +36,7 @@ const VALID_SCENE_THEMES = new Set(SCENE_THEME_IDS);
 const VALID_COMMON_SCENE_TEXTURES = new Set(getCommonSceneTexturePaths());
 const VALID_ENEMY_TEXTURES = new Set(getEnemyTexturePaths());
 const VALID_EQUIPMENT_TEXTURES = new Set(getEquipmentTexturePaths());
+const VALID_EQUIPMENT_SLOTS = new Set(EQUIPMENT_SLOT_ORDER);
 
 function issue(path: string, message: string): ValidationIssue {
   return { path, message };
@@ -153,6 +155,14 @@ function validateEquipment(equipment: EquipmentDefinition, path: string): Valida
 
   if (!equipment.name) {
     issues.push(issue(`${path}.name`, "Equipment name is required."));
+  }
+
+  if (equipment.itemType !== "equipment") {
+    issues.push(issue(`${path}.itemType`, "Equipment itemType must be equipment."));
+  }
+
+  if (!VALID_EQUIPMENT_SLOTS.has(equipment.slot)) {
+    issues.push(issue(`${path}.slot`, "Equipment slot is not supported."));
   }
 
   if (!VALID_EQUIPMENT_TEXTURES.has(equipment.texturePath)) {
