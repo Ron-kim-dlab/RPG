@@ -5,6 +5,7 @@ import { describeEquipmentActionCard, describeSkillActionCard } from "../src/ui/
 const equipment: EquipmentDefinition = {
   id: "equipment-bronze-sword",
   name: "청동 검",
+  texturePath: "/assets/generated/items/item-village-sword.png",
   village: "시작의 마을",
   cost: 120,
   attackBonus: 7,

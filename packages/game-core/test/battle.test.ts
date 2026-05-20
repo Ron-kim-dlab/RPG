@@ -19,6 +19,7 @@ const emptyWorld = {
 };
 
 const TEST_ENEMY_TEXTURE = "/assets/generated/monsters/monster-slime.png";
+const TEST_EQUIPMENT_TEXTURE = "/assets/generated/items/item-village-sword.png";
 
 const overworldWorld = {
   startLocationKey: "시작의 마을::마을 입구",
@@ -101,6 +102,7 @@ function makeEquipment(id: string, effect: EffectDefinition) {
   return {
     id,
     name: id,
+    texturePath: TEST_EQUIPMENT_TEXTURE,
     cost: 0,
     attackBonus: 0,
     manaCost: 0,

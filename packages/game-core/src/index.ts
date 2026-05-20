@@ -5,5 +5,6 @@ export * from "./engine/battle";
 export * from "./content/legacy";
 export * from "./content/sceneMetadata";
 export * from "./content/enemyTextures";
+export * from "./content/equipmentTextures";
 export * from "./validation";
 export * from "./contracts";
