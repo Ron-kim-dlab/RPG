@@ -1,5 +1,11 @@
 import type { Server } from "socket.io";
-import type { ChatMessage, Facing, PresenceState, WorldContent } from "@rpg/game-core";
+import {
+  isPlayerAvatarId,
+  type ChatMessage,
+  type Facing,
+  type PresenceState,
+  type WorldContent,
+} from "@rpg/game-core";
 import type { ServerEnv } from "../config/env";
 import { verifyToken } from "../http/auth";
 
@@ -23,6 +29,7 @@ type PresencePayload = {
   x: number;
   y: number;
   facing: Facing;
+  avatarId: string;
 };
 
 const FACING_VALUES = new Set<Facing>(["up", "down", "left", "right"]);
@@ -80,15 +87,20 @@ function readPresencePayload(payload: unknown, sceneBounds: Map<string, SceneBou
     return null;
   }
 
+  if (!isPlayerAvatarId(record.avatarId)) {
+    return null;
+  }
+
   return {
     sceneId: record.sceneId,
     x: record.x,
     y: record.y,
     facing: record.facing,
+    avatarId: record.avatarId,
   };
 }
 
-function readPositionPayload(payload: unknown, bounds: SceneBounds): Omit<PresencePayload, "sceneId"> | null {
+function readPositionPayload(payload: unknown, bounds: SceneBounds): Omit<PresencePayload, "sceneId" | "avatarId"> | null {
   const record = asRecord(payload);
   if (!record) {
     return null;
@@ -130,6 +142,7 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
       y: entry.y,
       facing: entry.facing,
       color: entry.color,
+      avatarId: entry.avatarId,
       updatedAt: entry.updatedAt,
     }));
 
@@ -174,7 +187,7 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
       data.sceneId = undefined;
     };
 
-    const joinScene = (sceneId: string, x: number, y: number, facing: Facing) => {
+    const joinScene = (sceneId: string, x: number, y: number, facing: Facing, avatarId: string) => {
       leaveCurrentScene();
       data.sceneId = sceneId;
       socket.join(sceneId);
@@ -186,6 +199,7 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
         y,
         facing,
         color: data.color,
+        avatarId,
         updatedAt: new Date().toISOString(),
       };
 
@@ -206,7 +220,7 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
       if (!nextPresence) {
         return;
       }
-      joinScene(nextPresence.sceneId, nextPresence.x, nextPresence.y, nextPresence.facing);
+      joinScene(nextPresence.sceneId, nextPresence.x, nextPresence.y, nextPresence.facing, nextPresence.avatarId);
     });
 
     socket.on("scene:change", (payload: unknown) => {
@@ -214,7 +228,7 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
       if (!nextPresence) {
         return;
       }
-      joinScene(nextPresence.sceneId, nextPresence.x, nextPresence.y, nextPresence.facing);
+      joinScene(nextPresence.sceneId, nextPresence.x, nextPresence.y, nextPresence.facing, nextPresence.avatarId);
     });
 
     socket.on("presence:update", (payload: unknown) => {
@@ -248,6 +262,7 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
         y: next.y,
         facing: next.facing,
         color: next.color,
+        avatarId: next.avatarId,
         updatedAt: next.updatedAt,
       } satisfies PresenceState);
     });

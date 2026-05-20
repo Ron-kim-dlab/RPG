@@ -34,6 +34,7 @@ function toRuntimeEnemy(enemy: EnemyDefinition): CombatantRuntime {
   return {
     id: enemy.id,
     name: enemy.name,
+    texturePath: enemy.texturePath,
     currentHp: enemy.currentHp ?? enemy.maxHp,
     maxHp: enemy.maxHp,
     currentMp: enemy.mana,

@@ -6,6 +6,7 @@ type PresenceIntent = {
   x: number;
   y: number;
   facing: Facing;
+  avatarId: string;
 };
 
 type RealtimeHandlers = {
@@ -66,15 +67,15 @@ export class PresenceClient {
     this.isConnected = false;
   }
 
-  joinScene(sceneId: string, x: number, y: number, facing: Facing): void {
-    this.desiredPresence = { sceneId, x, y, facing };
+  joinScene(sceneId: string, x: number, y: number, facing: Facing, avatarId: string): void {
+    this.desiredPresence = { sceneId, x, y, facing, avatarId };
     if (this.isConnected) {
       this.socket?.emit("presence:join", this.desiredPresence);
     }
   }
 
-  changeScene(sceneId: string, x: number, y: number, facing: Facing): void {
-    this.desiredPresence = { sceneId, x, y, facing };
+  changeScene(sceneId: string, x: number, y: number, facing: Facing, avatarId: string): void {
+    this.desiredPresence = { sceneId, x, y, facing, avatarId };
     if (this.isConnected) {
       this.socket?.emit("scene:change", this.desiredPresence);
     }

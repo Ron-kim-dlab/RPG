@@ -78,6 +78,7 @@ export type TacticDefinition = {
 export type EnemyDefinition = {
   id: string;
   name: string;
+  texturePath: string;
   currentHp?: number;
   maxHp: number;
   attack: number;
@@ -129,6 +130,7 @@ export type DialogueNpc = {
   name: string;
   x: number;
   y: number;
+  texturePath: string;
   lines: string[];
 };
 
@@ -159,7 +161,7 @@ export type SceneAssetBundle = {
   npcTexturePath: string;
   portalTexturePath: string;
   encounterTexturePath: string;
-  license: "placeholder";
+  license: "placeholder" | "generated";
   attribution: string;
 };
 
@@ -235,6 +237,7 @@ export type PresenceState = {
   y: number;
   facing: Facing;
   color: string;
+  avatarId: string;
   updatedAt: string;
 };
 
@@ -259,6 +262,7 @@ export type WorldContent = {
 export type CombatantRuntime = {
   id: string;
   name: string;
+  texturePath?: string;
   currentHp: number;
   maxHp: number;
   currentMp: number;

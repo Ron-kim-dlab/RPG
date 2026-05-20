@@ -18,6 +18,8 @@ const emptyWorld = {
   enemiesByLocation: {},
 };
 
+const TEST_ENEMY_TEXTURE = "/assets/generated/monsters/monster-slime.png";
+
 const overworldWorld = {
   startLocationKey: "시작의 마을::마을 입구",
   locations: {
@@ -115,6 +117,7 @@ describe("battle engine", () => {
     const enemy = {
       id: "enemy-slime",
       name: "슬라임",
+      texturePath: TEST_ENEMY_TEXTURE,
       maxHp: 5,
       attack: 1,
       defense: 0,
@@ -153,6 +156,7 @@ describe("battle engine", () => {
     const enemy = {
       id: "enemy-training-dummy",
       name: "허수아비",
+      texturePath: TEST_ENEMY_TEXTURE,
       maxHp: 100,
       attack: 0,
       defense: 0,
@@ -196,6 +200,7 @@ describe("battle engine", () => {
     const enemy = {
       id: "enemy-slime",
       name: "슬라임",
+      texturePath: TEST_ENEMY_TEXTURE,
       maxHp: 30,
       attack: 0,
       defense: 0,
@@ -249,6 +254,7 @@ describe("battle engine", () => {
     const enemy = {
       id: "enemy-ogre",
       name: "오우거",
+      texturePath: TEST_ENEMY_TEXTURE,
       maxHp: 999,
       attack: 999,
       defense: 0,

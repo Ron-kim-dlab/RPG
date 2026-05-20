@@ -14,7 +14,12 @@ export class BootScene extends Phaser.Scene {
     });
 
     manifest.texturePaths.forEach((path) => {
-      this.load.svg(path, path);
+      if (path.endsWith(".svg")) {
+        this.load.svg(path, path);
+        return;
+      }
+
+      this.load.image(path, path);
     });
   }
 

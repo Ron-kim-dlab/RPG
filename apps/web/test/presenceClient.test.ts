@@ -53,7 +53,7 @@ describe("PresenceClient", () => {
     );
 
     client.connect("token-value");
-    client.joinScene("scene-start", 10, 20, "down");
+    client.joinScene("scene-start", 10, 20, "down", "sword-knight");
     expect(socket.emitted).toEqual([]);
 
     socket.trigger("connect");
@@ -61,7 +61,7 @@ describe("PresenceClient", () => {
     expect(socket.emitted).toEqual([
       {
         eventName: "presence:join",
-        payload: { sceneId: "scene-start", x: 10, y: 20, facing: "down" },
+        payload: { sceneId: "scene-start", x: 10, y: 20, facing: "down", avatarId: "sword-knight" },
       },
     ]);
 
@@ -78,7 +78,7 @@ describe("PresenceClient", () => {
     expect(onDisconnect).toHaveBeenCalledWith("transport close");
 
     socket.clearEmitted();
-    client.changeScene("scene-plaza", 120, 220, "up");
+    client.changeScene("scene-plaza", 120, 220, "up", "forest-archer");
     expect(socket.emitted).toEqual([]);
 
     socket.trigger("connect");
@@ -86,7 +86,7 @@ describe("PresenceClient", () => {
     expect(socket.emitted).toEqual([
       {
         eventName: "presence:join",
-        payload: { sceneId: "scene-plaza", x: 120, y: 220, facing: "up" },
+        payload: { sceneId: "scene-plaza", x: 120, y: 220, facing: "up", avatarId: "forest-archer" },
       },
     ]);
   });

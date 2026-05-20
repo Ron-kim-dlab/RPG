@@ -1,14 +1,15 @@
 import { io, type Socket } from "socket.io-client";
-import type {
-  ApiResponse,
-  BootstrapPayload,
-  ChatMessage,
-  HealthPayload,
-  PlayerPayload,
-  PlayerSave,
-  PresenceState,
-  SessionPayload,
-  WorldContent,
+import {
+  DEFAULT_PLAYER_AVATAR_ID,
+  type ApiResponse,
+  type BootstrapPayload,
+  type ChatMessage,
+  type HealthPayload,
+  type PlayerPayload,
+  type PlayerSave,
+  type PresenceState,
+  type SessionPayload,
+  type WorldContent,
 } from "@rpg/game-core";
 import { readEnv } from "../src/config/env";
 
@@ -147,6 +148,7 @@ async function main(): Promise<void> {
       x: startLocation.scene.spawn.x,
       y: startLocation.scene.spawn.y,
       facing: "down",
+      avatarId: DEFAULT_PLAYER_AVATAR_ID,
     });
     await initialSnapshotA;
 
@@ -159,6 +161,7 @@ async function main(): Promise<void> {
       x: startLocation.scene.spawn.x + 32,
       y: startLocation.scene.spawn.y,
       facing: "right",
+      avatarId: "forest-archer",
     });
 
     const [joined, snapshot] = await Promise.all([joinedSeenByA, snapshotB]);

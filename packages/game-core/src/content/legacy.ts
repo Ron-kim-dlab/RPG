@@ -15,10 +15,12 @@ import type {
 import {
   createScenePortalSlots,
   createSceneLayout,
+  getNpcTexturePath,
   getSceneAssetBundle,
   getSceneLayoutId,
   getSceneThemeId,
 } from "./sceneMetadata";
+import { getEnemyTexturePath } from "./enemyTextures";
 import { toLocationKey, toStableId } from "../utils/id";
 import { assertValidWorldContent } from "../validation";
 
@@ -335,6 +337,7 @@ function buildScene(
   });
   const layout = createSceneLayout(layoutId);
   const portalSlots = createScenePortalSlots(layout, connectionKeys.length);
+  const npcTexturePath = getNpcTexturePath(layoutId, hasBoss);
 
   return {
     sceneId,
@@ -360,6 +363,7 @@ function buildScene(
             name: `${subLocation} 안내자`,
             x: layout.npcAnchor.x,
             y: layout.npcAnchor.y,
+            texturePath: npcTexturePath,
             lines: story,
           },
         ]
@@ -408,6 +412,7 @@ export function buildWorldContentFromLegacy(input: {
     enemyRecords[id] = {
       id,
       name: referenceName,
+      texturePath: getEnemyTexturePath({ name: referenceName, isBoss: true }),
       maxHp: boss.체력,
       attack: boss.공격력,
       defense: boss.방어력,
@@ -490,6 +495,7 @@ export function buildWorldContentFromLegacy(input: {
         enemyRecords[id] = {
           id,
           name: enemy.이름,
+          texturePath: getEnemyTexturePath({ name: enemy.이름, mainLocation, subLocation }),
           maxHp: enemy.체력,
           attack: enemy.공격력,
           defense: enemy.방어력,
