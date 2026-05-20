@@ -16,6 +16,7 @@ import {
   ensureStoryState,
   getMaxHp,
   getMaxMp,
+  PLAYER_AVATAR_IDS,
   performBattleAction,
   pickRandom,
 } from "@rpg/game-core";
@@ -36,6 +37,10 @@ import { DomUi } from "./ui/dom";
 
 const TOKEN_KEY = "rpg-rebuild-token";
 
+function pickPlayerAvatarId(): string {
+  return PLAYER_AVATAR_IDS[Math.floor(Math.random() * PLAYER_AVATAR_IDS.length)] ?? PLAYER_AVATAR_IDS[0];
+}
+
 type GameRuntime = {
   sync: (world: WorldContent | null, player: PlayerSave | null, nearbyPlayers: PresenceState[]) => void;
   destroy: () => void;
@@ -44,6 +49,7 @@ type GameRuntime = {
 type GameBridgeCallbacks = {
   canMove: () => boolean;
   isGameplayInputBlocked: () => boolean;
+  getPlayerAvatarId: () => string;
   getOverlayMode: () => ReturnType<typeof deriveOverlayMode>;
   hasPendingLocationStory: () => boolean;
   onPositionChange: (x: number, y: number, facing: Facing) => void;
@@ -62,6 +68,7 @@ export class AppController {
   private gamePromise: Promise<GameRuntime> | null = null;
   private gameRetryTimer: number | null = null;
   private hasRetriedGameLoad = false;
+  private readonly playerAvatarId = pickPlayerAvatarId();
   private readonly presence: PresenceClient;
   private lastSavedAt = 0;
   private readonly handleGlobalKeydown = (event: KeyboardEvent) => {
@@ -229,6 +236,7 @@ export class AppController {
         return Boolean(state.player && !state.battle && !state.dialogue);
       },
       isGameplayInputBlocked: () => this.isGameplayInputBlocked(this.getActiveElement()),
+      getPlayerAvatarId: () => this.playerAvatarId,
       getOverlayMode: () => deriveOverlayMode(this.store.getState()),
       hasPendingLocationStory: () => {
         const state = this.store.getState();
@@ -659,9 +667,9 @@ export class AppController {
       return;
     }
     if (isSceneChange) {
-      this.presence.changeScene(sceneId, player.position.x, player.position.y, player.facing);
+      this.presence.changeScene(sceneId, player.position.x, player.position.y, player.facing, this.playerAvatarId);
     } else {
-      this.presence.joinScene(sceneId, player.position.x, player.position.y, player.facing);
+      this.presence.joinScene(sceneId, player.position.x, player.position.y, player.facing, this.playerAvatarId);
     }
     this.store.setState({ connectionStatus: "connecting" });
   }

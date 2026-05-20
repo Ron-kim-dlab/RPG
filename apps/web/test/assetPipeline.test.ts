@@ -39,7 +39,9 @@ describe("web asset pipeline", () => {
       scenePaths.add(location.scene.assets.npcTexturePath);
       scenePaths.add(location.scene.assets.portalTexturePath);
       scenePaths.add(location.scene.assets.encounterTexturePath);
+      location.scene.npcs.forEach((npc) => scenePaths.add(npc.texturePath));
     });
+    Object.values(world.enemies).forEach((enemy) => scenePaths.add(enemy.texturePath));
 
     Array.from(scenePaths).forEach((assetPath) => {
       expect(existsSync(toPublicPath(assetPath)), `${assetPath} should exist in apps/web/public`).toBe(true);

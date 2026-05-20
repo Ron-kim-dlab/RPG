@@ -7,6 +7,7 @@ import { INITIAL_SCENE, shouldDisableGlobalKeyboardCapture, type ManagedSceneKey
 type BridgeCallbacks = {
   canMove: () => boolean;
   isGameplayInputBlocked: () => boolean;
+  getPlayerAvatarId: () => string;
   getOverlayMode: () => OverlayMode;
   hasPendingLocationStory: () => boolean;
   onPositionChange: (x: number, y: number, facing: Facing) => void;

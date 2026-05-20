@@ -1,4 +1,5 @@
 import type { CollisionZone, SceneAssetBundle, SceneLayoutId, SceneThemeId } from "../types";
+import { getEnemyTexturePaths } from "./enemyTextures";
 
 type SceneRect = {
   id: string;
@@ -50,11 +51,53 @@ export const SCENE_LAYOUT_IDS: SceneLayoutId[] = [
   "boss_arena",
 ];
 
+const GENERATED_ACTOR_ROOT = "/assets/generated/actors";
+
+export const PLAYER_AVATAR_IDS = [
+  "sword-knight",
+  "shield-guardian",
+  "forest-archer",
+  "hooded-rogue",
+  "fire-mage",
+  "frost-cleric",
+  "dwarven-fighter",
+  "elven-spellblade",
+  "desert-wanderer",
+  "royal-lancer",
+] as const;
+
+export type PlayerAvatarId = (typeof PLAYER_AVATAR_IDS)[number];
+
+export const DEFAULT_PLAYER_AVATAR_ID: PlayerAvatarId = PLAYER_AVATAR_IDS[0];
+
+export const PLAYER_AVATAR_TEXTURES: Record<PlayerAvatarId, string> = {
+  "sword-knight": `${GENERATED_ACTOR_ROOT}/player-sword-knight.png`,
+  "shield-guardian": `${GENERATED_ACTOR_ROOT}/player-shield-guardian.png`,
+  "forest-archer": `${GENERATED_ACTOR_ROOT}/player-forest-archer.png`,
+  "hooded-rogue": `${GENERATED_ACTOR_ROOT}/player-hooded-rogue.png`,
+  "fire-mage": `${GENERATED_ACTOR_ROOT}/player-fire-mage.png`,
+  "frost-cleric": `${GENERATED_ACTOR_ROOT}/player-frost-cleric.png`,
+  "dwarven-fighter": `${GENERATED_ACTOR_ROOT}/player-dwarven-fighter.png`,
+  "elven-spellblade": `${GENERATED_ACTOR_ROOT}/player-elven-spellblade.png`,
+  "desert-wanderer": `${GENERATED_ACTOR_ROOT}/player-desert-wanderer.png`,
+  "royal-lancer": `${GENERATED_ACTOR_ROOT}/player-royal-lancer.png`,
+};
+
+const NPC_TEXTURES = {
+  gateWarden: `${GENERATED_ACTOR_ROOT}/npc-gate-warden.png`,
+  blacksmithMerchant: `${GENERATED_ACTOR_ROOT}/npc-blacksmith-merchant.png`,
+  innkeeper: `${GENERATED_ACTOR_ROOT}/npc-innkeeper.png`,
+  skillMentor: `${GENERATED_ACTOR_ROOT}/npc-skill-mentor.png`,
+  townHerald: `${GENERATED_ACTOR_ROOT}/npc-town-herald.png`,
+  rangerGuide: `${GENERATED_ACTOR_ROOT}/npc-ranger-guide.png`,
+  bossSeer: `${GENERATED_ACTOR_ROOT}/npc-boss-seer.png`,
+} as const;
+
 const COMMON_TEXTURES = {
   propsTexturePath: "/assets/placeholders/props/prop-block.svg",
-  playerTexturePath: "/assets/placeholders/actors/player-local.svg",
-  remotePlayerTexturePath: "/assets/placeholders/actors/player-remote.svg",
-  npcTexturePath: "/assets/placeholders/actors/npc-guide.svg",
+  playerTexturePath: PLAYER_AVATAR_TEXTURES[DEFAULT_PLAYER_AVATAR_ID],
+  remotePlayerTexturePath: PLAYER_AVATAR_TEXTURES["shield-guardian"],
+  npcTexturePath: NPC_TEXTURES.rangerGuide,
   portalTexturePath: "/assets/placeholders/actors/portal.svg",
   encounterTexturePath: "/assets/placeholders/actors/encounter.svg",
 } as const;
@@ -402,13 +445,55 @@ export function getSceneAssetBundle(themeId: SceneThemeId, layoutId: SceneLayout
     npcTexturePath: COMMON_TEXTURES.npcTexturePath,
     portalTexturePath: COMMON_TEXTURES.portalTexturePath,
     encounterTexturePath: COMMON_TEXTURES.encounterTexturePath,
-    license: "placeholder",
-    attribution: "Handmade SVG placeholder assets for development-only map prototyping.",
+    license: "generated",
+    attribution: "AI-generated actor sprites with handmade SVG placeholder map assets.",
   };
 }
 
 export function getCommonSceneTexturePaths(): string[] {
-  return Object.values(COMMON_TEXTURES);
+  return Array.from(new Set([
+    ...Object.values(COMMON_TEXTURES),
+    ...Object.values(PLAYER_AVATAR_TEXTURES),
+    ...Object.values(NPC_TEXTURES),
+  ]));
+}
+
+export function getNpcTexturePath(layoutId: SceneLayoutId, hasBoss: boolean): string {
+  if (hasBoss || layoutId === "boss_arena") {
+    return NPC_TEXTURES.bossSeer;
+  }
+
+  if (layoutId === "shop") {
+    return NPC_TEXTURES.blacksmithMerchant;
+  }
+
+  if (layoutId === "inn") {
+    return NPC_TEXTURES.innkeeper;
+  }
+
+  if (layoutId === "skill_shop") {
+    return NPC_TEXTURES.skillMentor;
+  }
+
+  if (layoutId === "plaza") {
+    return NPC_TEXTURES.townHerald;
+  }
+
+  if (layoutId === "town_gate") {
+    return NPC_TEXTURES.gateWarden;
+  }
+
+  return NPC_TEXTURES.rangerGuide;
+}
+
+export function isPlayerAvatarId(value: unknown): value is PlayerAvatarId {
+  return typeof value === "string" && PLAYER_AVATAR_IDS.includes(value as PlayerAvatarId);
+}
+
+export function getPlayerAvatarTexturePath(avatarId: string): string {
+  return isPlayerAvatarId(avatarId)
+    ? PLAYER_AVATAR_TEXTURES[avatarId]
+    : PLAYER_AVATAR_TEXTURES[DEFAULT_PLAYER_AVATAR_ID];
 }
 
 export function getSceneAssetManifest(): { jsonPaths: string[]; texturePaths: string[] } {
@@ -417,6 +502,7 @@ export function getSceneAssetManifest(): { jsonPaths: string[]; texturePaths: st
     texturePaths: [
       ...SCENE_THEME_IDS.map((themeId) => getSceneTerrainTexturePath(themeId)),
       ...getCommonSceneTexturePaths(),
+      ...getEnemyTexturePaths(),
     ],
   };
 }

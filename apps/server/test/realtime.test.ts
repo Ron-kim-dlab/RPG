@@ -2,7 +2,7 @@ import type { AddressInfo } from "node:net";
 import { io as createClient, type Socket as ClientSocket } from "socket.io-client";
 import { describe, expect, it } from "vitest";
 import type { PresenceState, WorldContent } from "@rpg/game-core";
-import { createStarterPlayer } from "@rpg/game-core";
+import { createStarterPlayer, DEFAULT_PLAYER_AVATAR_ID } from "@rpg/game-core";
 import { createAppContext } from "../src/app";
 import { signToken } from "../src/http/auth";
 import { MemoryUserRepository } from "../src/storage/memoryRepository";
@@ -129,12 +129,12 @@ describe("realtime presence", () => {
       socketA.on("presence:snapshot", (snapshot) => snapshots.push(snapshot as PresenceState[]));
 
       const snapshotB = onceEvent<PresenceState[]>(socketB, "presence:snapshot");
-      socketB.emit("presence:join", { sceneId: "scene-start", x: 50, y: 60, facing: "left" });
+      socketB.emit("presence:join", { sceneId: "scene-start", x: 50, y: 60, facing: "left", avatarId: DEFAULT_PLAYER_AVATAR_ID });
       await snapshotB;
 
       const joinedByB = onceEvent<PresenceState>(socketB, "presence:joined");
       const snapshotA = onceEvent<PresenceState[]>(socketA, "presence:snapshot");
-      socketA.emit("presence:join", { sceneId: "scene-start", x: 10, y: 20, facing: "down" });
+      socketA.emit("presence:join", { sceneId: "scene-start", x: 10, y: 20, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
       const [joinedPresence] = await Promise.all([joinedByB, snapshotA]);
 
       expect(joinedPresence.username).toBe("hero-a");
@@ -195,20 +195,20 @@ describe("realtime presence", () => {
       sockets.push(observer, actor);
 
       const observerSnapshot = onceEvent<PresenceState[]>(observer, "presence:snapshot");
-      observer.emit("presence:join", { sceneId: "scene-start", x: 50, y: 60, facing: "left" });
+      observer.emit("presence:join", { sceneId: "scene-start", x: 50, y: 60, facing: "left", avatarId: DEFAULT_PLAYER_AVATAR_ID });
       await observerSnapshot;
 
       let joined: PresenceState | null = null;
       observer.on("presence:joined", (presence) => {
         joined = presence as PresenceState;
       });
-      actor.emit("presence:join", { sceneId: "unknown-scene", x: 10, y: 20, facing: "down" });
+      actor.emit("presence:join", { sceneId: "unknown-scene", x: 10, y: 20, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
       await waitForTick();
       expect(joined).toBeNull();
 
       const joinedByObserver = onceEvent<PresenceState>(observer, "presence:joined");
       const actorSnapshot = onceEvent<PresenceState[]>(actor, "presence:snapshot");
-      actor.emit("presence:join", { sceneId: "scene-start", x: 10, y: 20, facing: "down" });
+      actor.emit("presence:join", { sceneId: "scene-start", x: 10, y: 20, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
       await Promise.all([joinedByObserver, actorSnapshot]);
 
       let update: PresenceState | null = null;
@@ -274,12 +274,12 @@ describe("realtime presence", () => {
       sockets.push(observer, firstSocket);
 
       const observerSnapshot = onceEvent<PresenceState[]>(observer, "presence:snapshot");
-      observer.emit("presence:join", { sceneId: "scene-start", x: 50, y: 60, facing: "left" });
+      observer.emit("presence:join", { sceneId: "scene-start", x: 50, y: 60, facing: "left", avatarId: DEFAULT_PLAYER_AVATAR_ID });
       await observerSnapshot;
 
       const firstSnapshot = onceEvent<PresenceState[]>(firstSocket, "presence:snapshot");
       const joinedByObserver = onceEvent<PresenceState>(observer, "presence:joined");
-      firstSocket.emit("presence:join", { sceneId: "scene-start", x: 10, y: 20, facing: "down" });
+      firstSocket.emit("presence:join", { sceneId: "scene-start", x: 10, y: 20, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
       const [initialJoin] = await Promise.all([joinedByObserver, firstSnapshot]);
       expect(initialJoin.username).toBe("hero-a");
 
@@ -293,12 +293,13 @@ describe("realtime presence", () => {
 
       const replacementSnapshot = onceEvent<PresenceState[]>(replacementSocket, "presence:snapshot");
       const updatePromise = onceEvent<PresenceState>(observer, "presence:update");
-      replacementSocket.emit("presence:join", { sceneId: "scene-start", x: 88, y: 99, facing: "right" });
+      replacementSocket.emit("presence:join", { sceneId: "scene-start", x: 88, y: 99, facing: "right", avatarId: "forest-archer" });
       const [update, replacementRoom] = await Promise.all([updatePromise, replacementSnapshot]);
 
       expect(update.username).toBe("hero-a");
       expect(update.x).toBe(88);
       expect(update.facing).toBe("right");
+      expect(update.avatarId).toBe("forest-archer");
       expect(replacementRoom.some((presence) => presence.username === "hero-a")).toBe(true);
 
       firstSocket.disconnect();

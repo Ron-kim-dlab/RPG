@@ -18,6 +18,7 @@ import {
   SCENE_LAYOUT_IDS,
   SCENE_THEME_IDS,
 } from "./content/sceneMetadata";
+import { getEnemyTexturePaths } from "./content/enemyTextures";
 
 export type ValidationIssue = {
   path: string;
@@ -31,6 +32,7 @@ const VALID_TACTIC_TYPES = new Set<TacticDefinition["type"]>(["charge", "multi",
 const VALID_SCENE_LAYOUTS = new Set(SCENE_LAYOUT_IDS);
 const VALID_SCENE_THEMES = new Set(SCENE_THEME_IDS);
 const VALID_COMMON_SCENE_TEXTURES = new Set(getCommonSceneTexturePaths());
+const VALID_ENEMY_TEXTURES = new Set(getEnemyTexturePaths());
 
 function issue(path: string, message: string): ValidationIssue {
   return { path, message };
@@ -170,6 +172,10 @@ function validateEnemy(enemy: EnemyDefinition, path: string): ValidationIssue[] 
     issues.push(issue(`${path}.maxHp`, "Enemy maxHp must be greater than 0."));
   }
 
+  if (!VALID_ENEMY_TEXTURES.has(enemy.texturePath)) {
+    issues.push(issue(`${path}.texturePath`, "Enemy texture path is outside the shared monster asset set."));
+  }
+
   if (enemy.specialAbility) {
     issues.push(...validateSkill(enemy.specialAbility, `${path}.specialAbility`));
   }
@@ -227,8 +233,8 @@ function validateSceneBounds(scene: SceneDefinition, path: string): ValidationIs
     }
   });
 
-  if (scene.assets.license !== "placeholder") {
-    issues.push(issue(`${path}.assets.license`, "Scene assets must currently be tagged as placeholder."));
+  if (scene.assets.license !== "placeholder" && scene.assets.license !== "generated") {
+    issues.push(issue(`${path}.assets.license`, "Scene assets must be tagged as placeholder or generated."));
   }
 
   if (!scene.assets.attribution.trim()) {
@@ -325,6 +331,10 @@ function validateLocation(location: LocationNode, key: string, world: WorldConte
   location.scene.npcs.forEach((npc, index) => {
     if (npc.x < 0 || npc.x > location.scene.width || npc.y < 0 || npc.y > location.scene.height) {
       issues.push(issue(`${path}.scene.npcs[${index}]`, "NPC anchor must stay inside the scene."));
+    }
+
+    if (!VALID_COMMON_SCENE_TEXTURES.has(npc.texturePath)) {
+      issues.push(issue(`${path}.scene.npcs[${index}].texturePath`, "NPC texture path is outside the shared actor asset set."));
     }
   });
 

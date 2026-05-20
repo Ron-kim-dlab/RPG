@@ -562,11 +562,46 @@ button {
   gap: 12px;
 }
 
+.battle-showcase {
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  margin: 14px 0;
+}
+
+.battle-portrait {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 156px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 62%, rgba(216, 109, 96, 0.2), transparent 58%),
+    rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.battle-portrait.boss {
+  background:
+    radial-gradient(circle at 50% 62%, rgba(242, 204, 143, 0.22), transparent 58%),
+    rgba(216, 109, 96, 0.1);
+}
+
+.battle-portrait img {
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.38));
+}
+
 .battle-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin: 14px 0;
+  margin: 0;
 }
 
 .battle-status-strip {
@@ -796,9 +831,16 @@ button {
 
   .battle-actions,
   .battle-stats,
+  .battle-showcase,
   .meter-grid,
   .dock-grid {
     grid-template-columns: 1fr;
+  }
+
+  .battle-portrait {
+    width: min(180px, 100%);
+    min-height: 150px;
+    justify-self: center;
   }
 
   .auth-card {

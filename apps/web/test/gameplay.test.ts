@@ -12,6 +12,8 @@ const baseWorld: WorldContent = {
   enemiesByLocation: {},
 };
 
+const TEST_ENEMY_TEXTURE = "/assets/generated/monsters/monster-slime.png";
+
 function makeLocation(key: string, sceneId: string): LocationNode {
   const [mainLocation = "테스트 마을", subLocation = "테스트 구역"] = key.split("::");
   return {
@@ -61,6 +63,7 @@ describe("web gameplay helpers", () => {
     const enemy = {
       id: "enemy-slime",
       name: "슬라임",
+      texturePath: TEST_ENEMY_TEXTURE,
       maxHp: 5,
       attack: 0,
       defense: 0,

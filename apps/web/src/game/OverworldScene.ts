@@ -1,18 +1,20 @@
 import Phaser from "phaser";
-import type {
-  DialogueNpc,
-  EncounterZone,
-  Facing,
-  PlayerSave,
-  PresenceState,
-  SceneDefinition,
-  WorldContent,
+import {
+  getPlayerAvatarTexturePath,
+  type DialogueNpc,
+  type EncounterZone,
+  type Facing,
+  type PlayerSave,
+  type PresenceState,
+  type SceneDefinition,
+  type WorldContent,
 } from "@rpg/game-core";
 import type { FieldPrompt, OverlayMode } from "../gameplay";
 
 type SceneCallbacks = {
   canMove: () => boolean;
   isGameplayInputBlocked: () => boolean;
+  getPlayerAvatarId: () => string;
   getOverlayMode: () => OverlayMode;
   hasPendingLocationStory: () => boolean;
   onPositionChange: (x: number, y: number, facing: Facing) => void;
@@ -49,13 +51,24 @@ type TiledMapData = {
   layers: TiledObjectLayer[];
 };
 
+type RemotePlayerSprite = {
+  container: Phaser.GameObjects.Container;
+  sprite: Phaser.GameObjects.Sprite;
+  avatarId: string;
+  targetX: number;
+  targetY: number;
+};
+
+const REMOTE_INTERPOLATION_SPEED = 12;
+const REMOTE_SNAP_DISTANCE = 240;
+
 export class OverworldScene extends Phaser.Scene {
   private world: WorldContent | null = null;
   private playerState: PlayerSave | null = null;
   private sceneDefinition: SceneDefinition | null = null;
   private callbacks: SceneCallbacks | null = null;
   private playerSprite!: Phaser.GameObjects.Sprite;
-  private remoteSprites = new Map<string, Phaser.GameObjects.Container>();
+  private remoteSprites = new Map<string, RemotePlayerSprite>();
   private portals: Array<{ zone: Phaser.Geom.Rectangle; locationKey: string; label: string }> = [];
   private encounterZones: Array<{ zone: Phaser.Geom.Rectangle; data: EncounterZone }> = [];
   private collisionZones: Phaser.Geom.Rectangle[] = [];
@@ -128,32 +141,12 @@ export class OverworldScene extends Phaser.Scene {
       .filter((presence) => presence.username !== player.username && presence.sceneId === this.sceneDefinition?.sceneId)
       .forEach((presence) => {
         activeUsers.add(presence.username);
-        const existing = this.remoteSprites.get(presence.username);
-        if (existing) {
-          existing.setPosition(presence.x, presence.y);
-          return;
-        }
-
-        const remoteTexturePath = this.sceneDefinition?.assets.remotePlayerTexturePath;
-        if (!remoteTexturePath) {
-          return;
-        }
-
-        const sprite = this.add
-          .sprite(0, 0, remoteTexturePath)
-          .setDisplaySize(22, 22);
-        const label = this.add.text(0, -18, presence.username, {
-          color: "#fefae0",
-          fontFamily: "Space Mono, monospace",
-          fontSize: "12px",
-        }).setOrigin(0.5, 1);
-        const container = this.add.container(presence.x, presence.y, [sprite, label]).setDepth(5);
-        this.remoteSprites.set(presence.username, container);
+        this.syncRemotePresence(presence);
       });
 
-    Array.from(this.remoteSprites.entries()).forEach(([username, sprite]) => {
+    Array.from(this.remoteSprites.entries()).forEach(([username, remote]) => {
       if (!activeUsers.has(username)) {
-        sprite.destroy();
+        remote.container.destroy();
         this.remoteSprites.delete(username);
       }
     });
@@ -167,6 +160,7 @@ export class OverworldScene extends Phaser.Scene {
     const overlayMode = this.callbacks.getOverlayMode();
     const gameplayInputBlocked = this.callbacks.isGameplayInputBlocked();
     this.syncGameplayCapture(gameplayInputBlocked);
+    this.interpolateRemoteSprites(delta);
     const canExplore = overlayMode === "explore" && this.callbacks.canMove() && !gameplayInputBlocked;
     const speed = canExplore ? 160 : 0;
     let velocityX = 0;
@@ -252,6 +246,58 @@ export class OverworldScene extends Phaser.Scene {
     }
   }
 
+  private syncRemotePresence(presence: PresenceState): void {
+    const existing = this.remoteSprites.get(presence.username);
+    const texturePath = getPlayerAvatarTexturePath(presence.avatarId);
+    if (existing) {
+      existing.targetX = presence.x;
+      existing.targetY = presence.y;
+      if (existing.avatarId !== presence.avatarId) {
+        existing.sprite.setTexture(texturePath);
+        existing.avatarId = presence.avatarId;
+      }
+      return;
+    }
+
+    const sprite = this.add
+      .sprite(0, 0, texturePath)
+      .setDisplaySize(30, 30);
+    const label = this.add.text(0, -22, presence.username, {
+      color: "#fefae0",
+      fontFamily: "Space Mono, monospace",
+      fontSize: "12px",
+    }).setOrigin(0.5, 1);
+    const container = this.add.container(presence.x, presence.y, [sprite, label]).setDepth(5);
+    this.remoteSprites.set(presence.username, {
+      container,
+      sprite,
+      avatarId: presence.avatarId,
+      targetX: presence.x,
+      targetY: presence.y,
+    });
+  }
+
+  private interpolateRemoteSprites(delta: number): void {
+    const blend = 1 - Math.exp(-REMOTE_INTERPOLATION_SPEED * (delta / 1000));
+    this.remoteSprites.forEach((remote) => {
+      const distance = Phaser.Math.Distance.Between(
+        remote.container.x,
+        remote.container.y,
+        remote.targetX,
+        remote.targetY,
+      );
+
+      if (distance > REMOTE_SNAP_DISTANCE) {
+        remote.container.setPosition(remote.targetX, remote.targetY);
+        return;
+      }
+
+      const nextX = Phaser.Math.Linear(remote.container.x, remote.targetX, blend);
+      const nextY = Phaser.Math.Linear(remote.container.y, remote.targetY, blend);
+      remote.container.setPosition(nextX, nextY);
+    });
+  }
+
   private syncGameplayCapture(gameplayInputBlocked: boolean): void {
     const keyboard = this.input.keyboard;
     if (!keyboard || gameplayInputBlocked === this.gameplayCaptureDisabled) {
@@ -288,7 +334,7 @@ export class OverworldScene extends Phaser.Scene {
     this.npcMarkers = [];
     this.lastPromptKey = "";
     this.lastBroadcastKey = "";
-    this.remoteSprites.forEach((sprite) => sprite.destroy());
+    this.remoteSprites.forEach((remote) => remote.container.destroy());
     this.remoteSprites.clear();
 
     this.renderSceneMap(location.scene);
@@ -362,8 +408,8 @@ export class OverworldScene extends Phaser.Scene {
 
     location.scene.npcs.forEach((npc) => {
       const sprite = this.add
-        .sprite(npc.x, npc.y, location.scene.assets.npcTexturePath)
-        .setDisplaySize(24, 24)
+        .sprite(npc.x, npc.y, npc.texturePath)
+        .setDisplaySize(32, 32)
         .setDepth(6);
       this.tweens.add({
         targets: sprite,
@@ -382,8 +428,12 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     this.playerSprite = this.add
-      .sprite(this.playerState.position.x, this.playerState.position.y, location.scene.assets.playerTexturePath)
-      .setDisplaySize(26, 26)
+      .sprite(
+        this.playerState.position.x,
+        this.playerState.position.y,
+        getPlayerAvatarTexturePath(this.callbacks?.getPlayerAvatarId() ?? ""),
+      )
+      .setDisplaySize(32, 32)
       .setDepth(8);
     this.hintText = this.add
       .text(20, 20, "", {

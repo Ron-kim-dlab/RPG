@@ -606,7 +606,7 @@ export class DomUi {
               autocomplete="username"
               minlength="${AUTH_USERNAME_MIN_LENGTH}"
               maxlength="${AUTH_USERNAME_MAX_LENGTH}"
-              pattern="[A-Za-z0-9_-]+"
+              pattern="[A-Za-z0-9_\\-]+"
               required
               ${disabled}
             />
@@ -842,6 +842,7 @@ export class DomUi {
       battle.evadeNext ? "다음 반격 회피 준비" : null,
       battle.guardBreakTurns > 0 ? `가드 브레이크 ${battle.guardBreakTurns}턴` : null,
     ].filter((entry): entry is string => Boolean(entry));
+    const enemyTexturePath = battle.enemy.texturePath ? escapeHtml(battle.enemy.texturePath) : null;
 
     this.battlePanel.classList.add("visible");
     this.battlePanel.innerHTML = this.renderPanelFrame({
@@ -850,11 +851,16 @@ export class DomUi {
       title: battle.enemy.name,
       controls: `<span class="pill">턴 ${battle.turnNumber}</span>`,
       body: `
-        <div class="battle-stats">
-          <div><span>적 HP</span><strong>${Math.round(battle.enemy.currentHp)} / ${battle.enemy.maxHp}</strong></div>
-          <div><span>내 HP</span><strong>${Math.round(battle.player.currentHp)} / ${battle.player.maxHp}</strong></div>
-          <div><span>내 MP</span><strong>${Math.round(battle.player.currentMp)} / ${battle.player.maxMp}</strong></div>
-          <div><span>전황</span><strong>${battle.isBoss ? "보스전" : "일반전"}</strong></div>
+        <div class="battle-showcase">
+          <div class="battle-portrait ${battle.isBoss ? "boss" : ""}">
+            ${enemyTexturePath ? `<img src="${enemyTexturePath}" alt="${escapeHtml(battle.enemy.name)}" loading="lazy">` : ""}
+          </div>
+          <div class="battle-stats">
+            <div><span>적 HP</span><strong>${Math.round(battle.enemy.currentHp)} / ${battle.enemy.maxHp}</strong></div>
+            <div><span>내 HP</span><strong>${Math.round(battle.player.currentHp)} / ${battle.player.maxHp}</strong></div>
+            <div><span>내 MP</span><strong>${Math.round(battle.player.currentMp)} / ${battle.player.maxMp}</strong></div>
+            <div><span>전황</span><strong>${battle.isBoss ? "보스전" : "일반전"}</strong></div>
+          </div>
         </div>
         <div class="battle-status-strip">
           ${statuses.map((status) => `<span class="pill">${status}</span>`).join("") || `<span class="pill muted">지속 효과 없음</span>`}
