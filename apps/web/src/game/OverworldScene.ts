@@ -353,13 +353,26 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     location.scene.portals.forEach((portal) => {
+      const isVerticalPortal = portal.height >= portal.width;
+      const portalDisplayWidth = isVerticalPortal ? 72 : 88;
+      const portalDisplayHeight = isVerticalPortal ? 112 : 80;
+      const portalX = Phaser.Math.Clamp(
+        portal.x + portal.width / 2,
+        portalDisplayWidth / 2 + 4,
+        location.scene.width - portalDisplayWidth / 2 - 4,
+      );
+      const portalY = Phaser.Math.Clamp(
+        portal.y + portal.height / 2,
+        portalDisplayHeight / 2 + 4,
+        location.scene.height - portalDisplayHeight / 2 - 4,
+      );
       const portalSprite = this.add
         .image(
-          portal.x + portal.width / 2,
-          portal.y + portal.height / 2,
+          portalX,
+          portalY,
           location.scene.assets.portalTexturePath,
         )
-        .setDisplaySize(Math.max(portal.width, 28), Math.max(portal.height, 28))
+        .setDisplaySize(portalDisplayWidth, portalDisplayHeight)
         .setDepth(3);
       this.tweens.add({
         targets: portalSprite,
@@ -578,7 +591,13 @@ export class OverworldScene extends Phaser.Scene {
 
   private renderSceneMap(scene: SceneDefinition): void {
     this.add
-      .tileSprite(scene.width / 2, scene.height / 2, scene.width, scene.height, scene.assets.terrainTexturePath)
+      .tileSprite(
+        scene.width / 2,
+        scene.height / 2,
+        scene.width,
+        scene.height,
+        scene.assets.floorTexturePath ?? scene.assets.terrainTexturePath,
+      )
       .setDepth(0);
 
     const mapData = this.cache.json.get(scene.assets.mapJsonPath) as TiledMapData | undefined;
@@ -605,19 +624,23 @@ export class OverworldScene extends Phaser.Scene {
 
         if (layer.name === "props") {
           layer.objects.forEach((object) => {
+            const propTexturePath = this.resolvePropTexturePath(scene, object);
+            const usesGeneratedProp = propTexturePath !== scene.assets.propsTexturePath;
             const prop = this.add
               .image(
                 object.x + object.width / 2,
                 object.y + object.height / 2,
-                scene.assets.propsTexturePath,
+                propTexturePath,
               )
               .setDisplaySize(Math.max(object.width, 18), Math.max(object.height, 18))
-              .setTint(this.colorForProp(object.class))
               .setAlpha(this.readAlpha(object.properties))
               .setDepth(2);
+            if (!usesGeneratedProp) {
+              prop.setTint(this.colorForProp(object.class));
+            }
 
             const label = this.readLabel(object.properties);
-            if (label) {
+            if (label && !usesGeneratedProp) {
               this.add.text(prop.x, prop.y + object.height / 2 + 6, label, {
                 color: "#f8fafc",
                 fontFamily: "Space Mono, monospace",
@@ -627,6 +650,12 @@ export class OverworldScene extends Phaser.Scene {
           });
         }
       });
+  }
+
+  private resolvePropTexturePath(scene: SceneDefinition, object: TiledObject): string {
+    return scene.assets.propTexturePaths?.[object.name]
+      ?? (object.class ? scene.assets.propTexturePaths?.[object.class] : undefined)
+      ?? scene.assets.propsTexturePath;
   }
 
   private isBlocked(x: number, y: number): boolean {

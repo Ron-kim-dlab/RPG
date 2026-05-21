@@ -242,10 +242,16 @@ function validateSceneBounds(scene: SceneDefinition, path: string): ValidationIs
     ["portalTexturePath", scene.assets.portalTexturePath],
     ["encounterTexturePath", scene.assets.encounterTexturePath],
   ];
+  if (scene.assets.floorTexturePath) {
+    commonTextureEntries.push(["floorTexturePath", scene.assets.floorTexturePath]);
+  }
+  Object.entries(scene.assets.propTexturePaths ?? {}).forEach(([key, texturePath]) => {
+    commonTextureEntries.push([`propTexturePaths.${key}`, texturePath]);
+  });
 
   commonTextureEntries.forEach(([field, value]) => {
     if (!VALID_COMMON_SCENE_TEXTURES.has(value)) {
-      issues.push(issue(`${path}.assets.${field}`, "Scene texture path is outside the shared placeholder asset set."));
+      issues.push(issue(`${path}.assets.${field}`, "Scene texture path is outside the shared scene asset set."));
     }
   });
 

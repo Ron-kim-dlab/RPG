@@ -33,7 +33,11 @@ describe("web asset pipeline", () => {
     Object.values(world.locations).forEach((location) => {
       scenePaths.add(location.scene.assets.mapJsonPath);
       scenePaths.add(location.scene.assets.terrainTexturePath);
+      if (location.scene.assets.floorTexturePath) {
+        scenePaths.add(location.scene.assets.floorTexturePath);
+      }
       scenePaths.add(location.scene.assets.propsTexturePath);
+      Object.values(location.scene.assets.propTexturePaths ?? {}).forEach((path) => scenePaths.add(path));
       scenePaths.add(location.scene.assets.playerTexturePath);
       scenePaths.add(location.scene.assets.remotePlayerTexturePath);
       scenePaths.add(location.scene.assets.npcTexturePath);

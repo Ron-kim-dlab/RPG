@@ -388,7 +388,7 @@ function buildScene(
       width: zone.width,
       height: zone.height,
     })),
-    assets: getSceneAssetBundle(themeId, layoutId),
+    assets: getSceneAssetBundle(themeId, layoutId, mainLocation),
   };
 }
 
