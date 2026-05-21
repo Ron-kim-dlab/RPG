@@ -442,37 +442,6 @@ button {
   flex-wrap: wrap;
 }
 
-.action-prompt {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.action-prompt.accent {
-  background: rgba(83, 181, 156, 0.12);
-}
-
-.action-prompt.danger {
-  background: rgba(216, 109, 96, 0.12);
-}
-
-.action-prompt h3 {
-  margin: 4px 0 0;
-  font-size: 0.98rem;
-}
-
-.action-prompt p {
-  margin: 6px 0 0;
-  color: var(--text-muted);
-  line-height: 1.45;
-}
-
 .status-pill,
 .pill {
   display: inline-flex;
@@ -1108,8 +1077,7 @@ button.dock-card[data-equipment] {
     display: grid;
   }
 
-  .status-meters,
-  .action-prompt {
+  .status-meters {
     display: grid;
     grid-template-columns: 1fr;
   }
