@@ -5,6 +5,7 @@
   "description": "2D browser RPG monorepo with multiplayer-ready services",
   "packageManager": "pnpm@10.32.1",
   "scripts": {
+    "dev": "corepack pnpm -r --parallel --stream --filter @rpg/server --filter @rpg/web dev",
     "dev:web": "corepack pnpm --filter @rpg/web dev",
     "dev:server": "corepack pnpm --filter @rpg/server dev",
     "build": "corepack pnpm -r build",
