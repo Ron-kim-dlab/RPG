@@ -339,16 +339,19 @@ export class OverworldScene extends Phaser.Scene {
 
     this.renderSceneMap(location.scene);
 
+    const usesGeneratedSceneArt = Boolean(location.scene.assets.floorTexturePath);
     location.scene.collisionZones.forEach((zone) => {
-      const collisionHint = this.add.rectangle(
-        zone.x + zone.width / 2,
-        zone.y + zone.height / 2,
-        zone.width,
-        zone.height,
-        Phaser.Display.Color.HexStringToColor("#182026").color,
-        0.12,
-      ).setDepth(1);
-      collisionHint.setStrokeStyle(1, Phaser.Display.Color.HexStringToColor("#0f1720").color, 0.2);
+      if (!usesGeneratedSceneArt) {
+        const collisionHint = this.add.rectangle(
+          zone.x + zone.width / 2,
+          zone.y + zone.height / 2,
+          zone.width,
+          zone.height,
+          Phaser.Display.Color.HexStringToColor("#182026").color,
+          0.08,
+        ).setDepth(1);
+        collisionHint.setStrokeStyle(1, Phaser.Display.Color.HexStringToColor("#0f1720").color, 0.16);
+      }
       this.collisionZones.push(new Phaser.Geom.Rectangle(zone.x, zone.y, zone.width, zone.height));
     });
 
@@ -396,19 +399,41 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     location.scene.encounterZones.forEach((encounterZone) => {
+      const zoneCenterX = encounterZone.x + encounterZone.width / 2;
+      const zoneCenterY = encounterZone.y + encounterZone.height / 2;
+      const zoneDisplayWidth = Math.max(96, Math.min(encounterZone.width * 0.58, 260));
+      const zoneDisplayHeight = Math.max(58, Math.min(encounterZone.height * 0.72, zoneDisplayWidth * 0.6));
       const encounterMarker = this.add
         .image(
-          encounterZone.x + encounterZone.width / 2,
-          encounterZone.y + encounterZone.height / 2,
+          zoneCenterX,
+          zoneCenterY,
           location.scene.assets.encounterTexturePath,
         )
-        .setDisplaySize(encounterZone.width, encounterZone.height)
-        .setAlpha(0.22)
+        .setDisplaySize(zoneDisplayWidth, zoneDisplayHeight)
+        .setAlpha(0.3)
         .setDepth(2);
+      const encounterGlow = this.add
+        .image(zoneCenterX, zoneCenterY, location.scene.assets.encounterTexturePath)
+        .setDisplaySize(zoneDisplayWidth * 0.86, zoneDisplayHeight * 0.82)
+        .setAlpha(0.12)
+        .setDepth(3)
+        .setBlendMode(Phaser.BlendModes.ADD);
       this.tweens.add({
         targets: encounterMarker,
-        alpha: 0.34,
-        duration: 900,
+        alpha: 0.42,
+        scaleX: 1.01,
+        scaleY: 1.018,
+        duration: 1500,
+        yoyo: true,
+        repeat: -1,
+        ease: "sine.inOut",
+      });
+      this.tweens.add({
+        targets: encounterGlow,
+        alpha: 0.24,
+        scaleX: 1.045,
+        scaleY: 1.06,
+        duration: 1180,
         yoyo: true,
         repeat: -1,
         ease: "sine.inOut",
@@ -605,10 +630,15 @@ export class OverworldScene extends Phaser.Scene {
       return;
     }
 
+    const usesGeneratedFloor = Boolean(scene.assets.floorTexturePath);
     mapData.layers
       .filter((layer) => layer.type === "objectgroup")
       .forEach((layer) => {
         if (layer.name === "paths") {
+          if (usesGeneratedFloor) {
+            return;
+          }
+
           layer.objects.forEach((object) => {
             this.add.rectangle(
               object.x + object.width / 2,

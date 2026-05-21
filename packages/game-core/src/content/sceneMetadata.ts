@@ -101,6 +101,19 @@ const VILLAGE_FLOOR_TEXTURES = {
   "이웃 마을": `${GENERATED_SCENE_ROOT}/floor-neighbor-village.png`,
 } as const;
 
+const FIELD_FLOOR_TEXTURES: Partial<Record<SceneThemeId, string>> = {
+  grassland: `${GENERATED_SCENE_ROOT}/floor-grassland-field.png`,
+  forest: `${GENERATED_SCENE_ROOT}/floor-forest-field.png`,
+  desert: `${GENERATED_SCENE_ROOT}/floor-desert-field.png`,
+  mountain: `${GENERATED_SCENE_ROOT}/floor-mountain-field.png`,
+  swamp: `${GENERATED_SCENE_ROOT}/floor-swamp-field.png`,
+  river: `${GENERATED_SCENE_ROOT}/floor-river-field.png`,
+  sea: `${GENERATED_SCENE_ROOT}/floor-sea-field.png`,
+  sky: `${GENERATED_SCENE_ROOT}/floor-sky-field.png`,
+  space: `${GENERATED_SCENE_ROOT}/floor-space-field.png`,
+  castle: `${GENERATED_SCENE_ROOT}/floor-castle-field.png`,
+};
+
 const LAYOUT_PROP_TEXTURES: Partial<Record<SceneLayoutId, Record<string, string>>> = {
   town_gate: {
     building: `${GENERATED_SCENE_ROOT}/facility-town-gate.png`,
@@ -125,6 +138,14 @@ const LAYOUT_PROP_TEXTURES: Partial<Record<SceneLayoutId, Record<string, string>
     building: `${GENERATED_SCENE_ROOT}/facility-plaza.png`,
     stall: `${GENERATED_SCENE_ROOT}/facility-plaza.png`,
   },
+  field: {
+    tree: `${GENERATED_SCENE_ROOT}/field-tree-cluster.png`,
+    rock: `${GENERATED_SCENE_ROOT}/field-rock-bank.png`,
+    stall: `${GENERATED_SCENE_ROOT}/field-camp.png`,
+  },
+  boss_arena: {
+    rock: `${GENERATED_SCENE_ROOT}/boss-arena-pillar.png`,
+  },
 };
 
 const COMMON_TEXTURES = {
@@ -133,7 +154,7 @@ const COMMON_TEXTURES = {
   remotePlayerTexturePath: PLAYER_AVATAR_TEXTURES["shield-guardian"],
   npcTexturePath: NPC_TEXTURES.rangerGuide,
   portalTexturePath: `${GENERATED_SCENE_ROOT}/portal-rift.png`,
-  encounterTexturePath: "/assets/placeholders/actors/encounter.svg",
+  encounterTexturePath: `${GENERATED_SCENE_ROOT}/encounter-danger-zone.png`,
 } as const;
 
 const HORIZONTAL_PORTAL = {
@@ -468,8 +489,9 @@ export function getSceneTerrainTexturePath(themeId: SceneThemeId): string {
   return `/assets/placeholders/terrain/${themeId}.svg`;
 }
 
-export function getSceneFloorTexturePath(mainLocation: string): string | undefined {
-  return VILLAGE_FLOOR_TEXTURES[mainLocation as keyof typeof VILLAGE_FLOOR_TEXTURES];
+export function getSceneFloorTexturePath(mainLocation: string, themeId?: SceneThemeId): string | undefined {
+  return VILLAGE_FLOOR_TEXTURES[mainLocation as keyof typeof VILLAGE_FLOOR_TEXTURES]
+    ?? (themeId ? FIELD_FLOOR_TEXTURES[themeId] : undefined);
 }
 
 export function getScenePropTexturePaths(layoutId: SceneLayoutId): Record<string, string> | undefined {
@@ -480,6 +502,7 @@ export function getScenePropTexturePaths(layoutId: SceneLayoutId): Record<string
 export function getGeneratedSceneTexturePaths(): string[] {
   return Array.from(new Set([
     ...Object.values(VILLAGE_FLOOR_TEXTURES),
+    ...Object.values(FIELD_FLOOR_TEXTURES),
     ...Object.values(LAYOUT_PROP_TEXTURES).flatMap((texturePaths) => (
       texturePaths ? Object.values(texturePaths) : []
     )),
@@ -488,7 +511,7 @@ export function getGeneratedSceneTexturePaths(): string[] {
 }
 
 export function getSceneAssetBundle(themeId: SceneThemeId, layoutId: SceneLayoutId, mainLocation?: string): SceneAssetBundle {
-  const floorTexturePath = mainLocation ? getSceneFloorTexturePath(mainLocation) : undefined;
+  const floorTexturePath = mainLocation ? getSceneFloorTexturePath(mainLocation, themeId) : FIELD_FLOOR_TEXTURES[themeId];
   const propTexturePaths = getScenePropTexturePaths(layoutId);
 
   return {
