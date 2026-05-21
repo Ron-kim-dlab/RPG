@@ -160,7 +160,9 @@ export type SceneAssetBundle = {
   layoutId: SceneLayoutId;
   mapJsonPath: string;
   terrainTexturePath: string;
+  floorTexturePath?: string;
   propsTexturePath: string;
+  propTexturePaths?: Record<string, string>;
   playerTexturePath: string;
   remotePlayerTexturePath: string;
   npcTexturePath: string;

@@ -53,6 +53,7 @@ export const SCENE_LAYOUT_IDS: SceneLayoutId[] = [
 ];
 
 const GENERATED_ACTOR_ROOT = "/assets/generated/actors";
+const GENERATED_SCENE_ROOT = "/assets/generated/scenes";
 
 export const PLAYER_AVATAR_IDS = [
   "sword-knight",
@@ -94,12 +95,44 @@ const NPC_TEXTURES = {
   bossSeer: `${GENERATED_ACTOR_ROOT}/npc-boss-seer.png`,
 } as const;
 
+const VILLAGE_FLOOR_TEXTURES = {
+  "시작의 마을": `${GENERATED_SCENE_ROOT}/floor-start-village.png`,
+  "평화의 마을": `${GENERATED_SCENE_ROOT}/floor-peace-village.png`,
+  "이웃 마을": `${GENERATED_SCENE_ROOT}/floor-neighbor-village.png`,
+} as const;
+
+const LAYOUT_PROP_TEXTURES: Partial<Record<SceneLayoutId, Record<string, string>>> = {
+  town_gate: {
+    building: `${GENERATED_SCENE_ROOT}/facility-town-gate.png`,
+    stall: `${GENERATED_SCENE_ROOT}/facility-town-gate.png`,
+  },
+  shop: {
+    building: `${GENERATED_SCENE_ROOT}/facility-forge-shop.png`,
+    rock: `${GENERATED_SCENE_ROOT}/facility-forge-shop.png`,
+    stall: `${GENERATED_SCENE_ROOT}/facility-forge-shop.png`,
+  },
+  inn: {
+    altar: `${GENERATED_SCENE_ROOT}/facility-inn.png`,
+    bed: `${GENERATED_SCENE_ROOT}/facility-inn.png`,
+    stall: `${GENERATED_SCENE_ROOT}/facility-inn.png`,
+  },
+  skill_shop: {
+    altar: `${GENERATED_SCENE_ROOT}/facility-skill-shop.png`,
+    building: `${GENERATED_SCENE_ROOT}/facility-skill-shop.png`,
+  },
+  plaza: {
+    altar: `${GENERATED_SCENE_ROOT}/facility-plaza.png`,
+    building: `${GENERATED_SCENE_ROOT}/facility-plaza.png`,
+    stall: `${GENERATED_SCENE_ROOT}/facility-plaza.png`,
+  },
+};
+
 const COMMON_TEXTURES = {
   propsTexturePath: "/assets/placeholders/props/prop-block.svg",
   playerTexturePath: PLAYER_AVATAR_TEXTURES[DEFAULT_PLAYER_AVATAR_ID],
   remotePlayerTexturePath: PLAYER_AVATAR_TEXTURES["shield-guardian"],
   npcTexturePath: NPC_TEXTURES.rangerGuide,
-  portalTexturePath: "/assets/placeholders/actors/portal.svg",
+  portalTexturePath: `${GENERATED_SCENE_ROOT}/portal-rift.png`,
   encounterTexturePath: "/assets/placeholders/actors/encounter.svg",
 } as const;
 
@@ -435,19 +468,43 @@ export function getSceneTerrainTexturePath(themeId: SceneThemeId): string {
   return `/assets/placeholders/terrain/${themeId}.svg`;
 }
 
-export function getSceneAssetBundle(themeId: SceneThemeId, layoutId: SceneLayoutId): SceneAssetBundle {
+export function getSceneFloorTexturePath(mainLocation: string): string | undefined {
+  return VILLAGE_FLOOR_TEXTURES[mainLocation as keyof typeof VILLAGE_FLOOR_TEXTURES];
+}
+
+export function getScenePropTexturePaths(layoutId: SceneLayoutId): Record<string, string> | undefined {
+  const texturePaths = LAYOUT_PROP_TEXTURES[layoutId];
+  return texturePaths ? { ...texturePaths } : undefined;
+}
+
+export function getGeneratedSceneTexturePaths(): string[] {
+  return Array.from(new Set([
+    ...Object.values(VILLAGE_FLOOR_TEXTURES),
+    ...Object.values(LAYOUT_PROP_TEXTURES).flatMap((texturePaths) => (
+      texturePaths ? Object.values(texturePaths) : []
+    )),
+    COMMON_TEXTURES.portalTexturePath,
+  ]));
+}
+
+export function getSceneAssetBundle(themeId: SceneThemeId, layoutId: SceneLayoutId, mainLocation?: string): SceneAssetBundle {
+  const floorTexturePath = mainLocation ? getSceneFloorTexturePath(mainLocation) : undefined;
+  const propTexturePaths = getScenePropTexturePaths(layoutId);
+
   return {
     layoutId,
     mapJsonPath: getSceneMapJsonPath(layoutId),
     terrainTexturePath: getSceneTerrainTexturePath(themeId),
+    ...(floorTexturePath ? { floorTexturePath } : {}),
     propsTexturePath: COMMON_TEXTURES.propsTexturePath,
+    ...(propTexturePaths ? { propTexturePaths } : {}),
     playerTexturePath: COMMON_TEXTURES.playerTexturePath,
     remotePlayerTexturePath: COMMON_TEXTURES.remotePlayerTexturePath,
     npcTexturePath: COMMON_TEXTURES.npcTexturePath,
     portalTexturePath: COMMON_TEXTURES.portalTexturePath,
     encounterTexturePath: COMMON_TEXTURES.encounterTexturePath,
     license: "generated",
-    attribution: "AI-generated actor sprites with handmade SVG placeholder map assets.",
+    attribution: "AI-generated actor, scene, and facility sprites with handmade SVG placeholder map assets.",
   };
 }
 
@@ -456,6 +513,7 @@ export function getCommonSceneTexturePaths(): string[] {
     ...Object.values(COMMON_TEXTURES),
     ...Object.values(PLAYER_AVATAR_TEXTURES),
     ...Object.values(NPC_TEXTURES),
+    ...getGeneratedSceneTexturePaths(),
   ]));
 }
 
