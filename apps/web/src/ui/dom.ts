@@ -754,7 +754,6 @@ export class DomUi {
     ownedEquipment: EquipmentDefinition[],
   ): void {
     const { player, battle, battleReport } = state;
-    const prompt = state.fieldPrompt;
     if (!player || !currentLocation) {
       this.actionPanelWasVisible = false;
       this.actionPanel.classList.remove("visible");
@@ -883,16 +882,6 @@ export class DomUi {
         </div>
       `,
       body: `
-        ${prompt ? `
-          <div class="action-prompt ${prompt.tone}">
-            <div>
-              <div class="eyebrow">FIELD PROMPT</div>
-              <h3>${escapeHtml(prompt.title)}</h3>
-              <p>${escapeHtml(prompt.body)}</p>
-            </div>
-            <span class="pill">${escapeHtml(prompt.actionLabel)}</span>
-          </div>
-        ` : ""}
         <div class="equipment-layout">
           <section class="equipment-board" aria-label="장비창">
             <div class="inventory-section-heading">

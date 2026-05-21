@@ -218,7 +218,7 @@ export class OverworldScene extends Phaser.Scene {
     });
     this.syncFieldPrompt(prompt);
     this.syncOverlayState(overlayMode);
-    this.hintText.setText(`${prompt.title}  |  ${prompt.actionLabel}`);
+    this.syncWorldHint(prompt);
 
     if (!canExplore) {
       return;
@@ -262,11 +262,13 @@ export class OverworldScene extends Phaser.Scene {
     const sprite = this.add
       .sprite(0, 0, texturePath)
       .setDisplaySize(30, 30);
-    const label = this.add.text(0, -22, presence.username, {
+    const label = this.createReadableLabel(0, -24, presence.username, {
       color: "#fefae0",
+      depth: 6,
       fontFamily: "Space Mono, monospace",
-      fontSize: "12px",
-    }).setOrigin(0.5, 1);
+      fontSize: "11px",
+      originY: 1,
+    });
     const container = this.add.container(presence.x, presence.y, [sprite, label]).setDepth(5);
     this.remoteSprites.set(presence.username, {
       container,
@@ -385,12 +387,23 @@ export class OverworldScene extends Phaser.Scene {
         repeat: -1,
         ease: "sine.inOut",
       });
-      this.add.text(portal.x + portal.width / 2, portal.y + portal.height / 2, portal.label, {
-        color: "#fefae0",
-        fontFamily: "Space Mono, monospace",
-        fontSize: "11px",
-        align: "center",
-      }).setOrigin(0.5).setDepth(4);
+      const portalLabel = this.createReadableLabel(
+        portalX,
+        Math.min(portalY + portalDisplayHeight / 2 + 8, location.scene.height - 28),
+        portal.label,
+        {
+          color: "#fefae0",
+          depth: 4,
+          fontFamily: "Space Mono, monospace",
+          fontSize: "11px",
+          originY: 0,
+        },
+      );
+      portalLabel.setX(Phaser.Math.Clamp(
+        portalLabel.x,
+        portalLabel.displayWidth / 2 + 4,
+        location.scene.width - portalLabel.displayWidth / 2 - 4,
+      ));
       this.portals.push({
         zone: new Phaser.Geom.Rectangle(portal.x, portal.y, portal.width, portal.height),
         locationKey: portal.toLocationKey,
@@ -457,11 +470,12 @@ export class OverworldScene extends Phaser.Scene {
         repeat: -1,
         ease: "sine.inOut",
       });
-      this.add.text(npc.x, npc.y - 22, npc.name, {
-        color: "#111827",
-        fontFamily: "IBM Plex Sans KR, Pretendard, sans-serif",
+      this.createReadableLabel(npc.x, npc.y - 24, npc.name, {
+        color: "#fff7d6",
+        depth: 7,
         fontSize: "12px",
-      }).setOrigin(0.5, 1).setDepth(7);
+        originY: 1,
+      });
       this.npcMarkers.push({ sprite, npc });
     });
 
@@ -473,14 +487,17 @@ export class OverworldScene extends Phaser.Scene {
       )
       .setDisplaySize(32, 32)
       .setDepth(8);
-    this.hintText = this.add
-      .text(20, 20, "", {
-        color: "#f3efe0",
-        fontFamily: "IBM Plex Sans KR, Pretendard, sans-serif",
-        fontSize: "18px",
-      })
-      .setScrollFactor(0)
-      .setDepth(20);
+    this.hintText = this.createReadableLabel(
+      this.playerState.position.x,
+      this.playerState.position.y - 34,
+      "",
+      {
+        color: "#fff7d6",
+        depth: 30,
+        fontSize: "13px",
+        originY: 1,
+      },
+    ).setVisible(false);
     this.overlayShade = this.add
       .rectangle(location.scene.width / 2, location.scene.height / 2, location.scene.width, location.scene.height, 0x070b09, 0)
       .setDepth(18);
@@ -492,7 +509,9 @@ export class OverworldScene extends Phaser.Scene {
         letterSpacing: 2,
       })
       .setScrollFactor(0)
-      .setDepth(21);
+      .setDepth(21)
+      .setPadding(8, 4, 8, 4)
+      .setBackgroundColor("rgba(7, 15, 13, 0.86)");
 
     this.cameras.main.setBounds(0, 0, location.scene.width, location.scene.height);
     this.cameras.main.startFollow(this.playerSprite, true, 0.12, 0.12);
@@ -549,12 +568,12 @@ export class OverworldScene extends Phaser.Scene {
       };
     }
 
-    if (params.hasPendingLocationStory) {
+    if (params.npc) {
       return {
-        kind: "story",
-        title: "지역 이야기 확인 가능",
-        body: "이 지역의 도입 대사를 아직 읽지 않았습니다. Space 또는 Enter 로 바로 열 수 있습니다.",
-        actionLabel: "Space / Enter",
+        kind: "npc",
+        title: `${params.npc.name}와 대화`,
+        body: "NPC 근처에서 Space 를 누르면 대화 패널이 열립니다.",
+        actionLabel: "Space",
         tone: "accent",
       };
     }
@@ -569,12 +588,12 @@ export class OverworldScene extends Phaser.Scene {
       };
     }
 
-    if (params.npc) {
+    if (params.hasPendingLocationStory) {
       return {
-        kind: "npc",
-        title: `${params.npc.name}와 대화`,
-        body: "NPC 근처에서 Space 를 누르면 대화 패널이 열립니다.",
-        actionLabel: "Space",
+        kind: "story",
+        title: "지역 이야기 확인 가능",
+        body: "이 지역의 도입 대사를 아직 읽지 않았습니다. Space 또는 Enter 로 바로 열 수 있습니다.",
+        actionLabel: "Space / Enter",
         tone: "accent",
       };
     }
@@ -597,6 +616,50 @@ export class OverworldScene extends Phaser.Scene {
     this.callbacks?.onFieldPromptChange(prompt);
   }
 
+  private syncWorldHint(prompt: FieldPrompt): void {
+    const hint = this.getWorldHintText(prompt);
+    if (!hint) {
+      this.hintText.setVisible(false);
+      return;
+    }
+
+    if (this.hintText.text !== hint) {
+      this.hintText.setText(hint);
+    }
+    this.hintText
+      .setBackgroundColor(prompt.tone === "danger" ? "rgba(52, 16, 20, 0.9)" : "rgba(7, 32, 25, 0.9)")
+      .setVisible(true);
+
+    const cameraView = this.cameras.main.worldView;
+    const halfWidth = this.hintText.displayWidth / 2;
+    const x = Phaser.Math.Clamp(
+      this.playerSprite.x,
+      cameraView.left + halfWidth + 8,
+      cameraView.right - halfWidth - 8,
+    );
+    const y = Phaser.Math.Clamp(
+      this.playerSprite.y - 32,
+      cameraView.top + this.hintText.displayHeight + 8,
+      cameraView.bottom - 8,
+    );
+    this.hintText.setPosition(x, y);
+  }
+
+  private getWorldHintText(prompt: FieldPrompt): string | null {
+    switch (prompt.kind) {
+      case "portal":
+        return `${prompt.title.replace(/ 준비$/, "")}하려면 ${prompt.actionLabel} 누르기`;
+      case "npc":
+        return `${prompt.title}하려면 ${prompt.actionLabel} 누르기`;
+      case "encounter":
+        return `전투하려면 ${prompt.actionLabel} 누르기`;
+      case "story":
+        return `이야기 보려면 ${prompt.actionLabel} 누르기`;
+      default:
+        return null;
+    }
+  }
+
   private syncOverlayState(mode: OverlayMode): void {
     if (mode === "battle") {
       this.overlayShade.setAlpha(0.22).setFillStyle(0x2d1010, 0.22);
@@ -612,6 +675,36 @@ export class OverworldScene extends Phaser.Scene {
 
     this.overlayShade.setAlpha(0);
     this.overlayText.setText("").setAlpha(0);
+  }
+
+  private createReadableLabel(
+    x: number,
+    y: number,
+    text: string,
+    options: {
+      align?: "left" | "center" | "right";
+      backgroundColor?: string;
+      color?: string;
+      depth?: number;
+      fontFamily?: string;
+      fontSize?: string;
+      originX?: number;
+      originY?: number;
+    } = {},
+  ): Phaser.GameObjects.Text {
+    const label = this.add.text(x, y, text, {
+      align: options.align ?? "center",
+      color: options.color ?? "#f8fafc",
+      fontFamily: options.fontFamily ?? "IBM Plex Sans KR, Pretendard, sans-serif",
+      fontSize: options.fontSize ?? "12px",
+      stroke: "#06100d",
+      strokeThickness: 3,
+    });
+    return label
+      .setOrigin(options.originX ?? 0.5, options.originY ?? 0.5)
+      .setDepth(options.depth ?? 10)
+      .setPadding(6, 3, 6, 3)
+      .setBackgroundColor(options.backgroundColor ?? "rgba(7, 15, 13, 0.88)");
   }
 
   private renderSceneMap(scene: SceneDefinition): void {
@@ -671,11 +764,12 @@ export class OverworldScene extends Phaser.Scene {
 
             const label = this.readLabel(object.properties);
             if (label && !usesGeneratedProp) {
-              this.add.text(prop.x, prop.y + object.height / 2 + 6, label, {
-                color: "#f8fafc",
+              this.createReadableLabel(prop.x, prop.y + object.height / 2 + 6, label, {
+                depth: 3,
                 fontFamily: "Space Mono, monospace",
                 fontSize: "10px",
-              }).setOrigin(0.5, 0).setDepth(3);
+                originY: 0,
+              });
             }
           });
         }
