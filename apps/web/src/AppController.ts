@@ -1,5 +1,6 @@
 import type {
   BattleAction,
+  DeathGraveState,
   DialogueNpc,
   EquipmentDefinition,
   Facing,
@@ -48,6 +49,7 @@ type GameRuntime = {
     player: PlayerSave | null,
     nearbyPlayers: PresenceState[],
     fieldMonsters: FieldMonsterState[],
+    deathGraves: DeathGraveState[],
   ) => void;
   destroy: () => void;
 };
@@ -62,6 +64,7 @@ type GameBridgeCallbacks = {
   onSceneChange: (locationKey: string) => void;
   onOpenLocationStory: () => void;
   onInteractNpc: (npc: DialogueNpc) => void;
+  onInteractGrave: (grave: DeathGraveState) => void;
   onFieldMonsterContact: (monster: FieldMonsterState) => void;
   onFieldPromptChange: (prompt: FieldPrompt) => void;
 };
@@ -150,6 +153,8 @@ export class AppController {
       },
       onFieldMonstersSnapshot: (snapshot) => this.setFieldMonsters(snapshot),
       onFieldMonstersUpdate: (snapshot) => this.setFieldMonsters(snapshot),
+      onDeathGravesSnapshot: (snapshot) => this.setDeathGraves(snapshot),
+      onDeathGravesUpdate: (snapshot) => this.setDeathGraves(snapshot),
       onConnect: () => this.handleRealtimeConnect(),
       onDisconnect: (reason) => this.handleRealtimeDisconnect(reason),
       onConnectError: (message) => this.handleRealtimeConnectError(message),
@@ -184,7 +189,7 @@ export class AppController {
         : [];
 
       this.ui.render(state, currentLocation, equipmentForLocation, skillsForLocation, equipped, ownedEquipment, learnedSkills, learnedTactics);
-      this.game?.sync(state.world, state.player, state.presence, state.fieldMonsters);
+      this.game?.sync(state.world, state.player, state.presence, state.fieldMonsters, state.deathGraves);
     });
 
     window.addEventListener("keydown", this.handleGlobalKeydown);
@@ -265,6 +270,7 @@ export class AppController {
       },
       onOpenLocationStory: () => this.openCurrentLocationStory(),
       onInteractNpc: (npc) => this.openNpcDialogue(npc),
+      onInteractGrave: (grave) => this.openGraveDialogue(grave),
       onFieldMonsterContact: (monster) => {
         void this.startFieldMonsterBattle(monster);
       },
@@ -288,7 +294,7 @@ export class AppController {
             this.gameRetryTimer = null;
           }
           const state = this.store.getState();
-          game.sync(state.world, state.player, state.presence, state.fieldMonsters);
+          game.sync(state.world, state.player, state.presence, state.fieldMonsters, state.deathGraves);
           return game;
         })
         .catch((error) => {
@@ -338,6 +344,7 @@ export class AppController {
         chatMessages: [],
         presence: [],
         fieldMonsters: [],
+        deathGraves: [],
         pending: false,
       });
       this.loadGameBridge();
@@ -393,6 +400,7 @@ export class AppController {
       battleReport: null,
       presence: [],
       fieldMonsters: [],
+      deathGraves: [],
       chatMessages: [],
     });
     this.enterPresence(nextPlayer, true);
@@ -446,6 +454,25 @@ export class AppController {
       battleReport: null,
     });
     this.store.pushLog(`${npc.name}와(과) 대화를 시작합니다.`);
+  }
+
+  private openGraveDialogue(grave: DeathGraveState): void {
+    const state = this.store.getState();
+    if (!state.player) {
+      return;
+    }
+
+    this.store.setState({
+      dialogue: {
+        kind: "grave",
+        title: "묘지",
+        locationKey: state.player.locationKey,
+        lines: [`${grave.playerName}, ${grave.defeatedBy}에게 패배하여 여기에 잠들다...`],
+        index: 0,
+      },
+      battleReport: null,
+    });
+    this.store.pushLog(`${grave.playerName}의 묘지를 살펴봅니다.`);
   }
 
   private syncLocationStoryState(locationKey: string): boolean {
@@ -533,6 +560,10 @@ export class AppController {
       return;
     }
 
+    const previousPlayer = state.player;
+    const battleSceneId = this.world.locations[previousPlayer.locationKey]?.scene.sceneId ?? null;
+    const defeatedBy = state.battle.enemy.name;
+    const gravePosition = { ...previousPlayer.position };
     const resolution = performBattleAction({
       player: state.player,
       state: state.battle,
@@ -544,7 +575,6 @@ export class AppController {
       world: this.world,
     });
 
-    const previousPlayer = state.player;
     let nextPlayer = resolution.player;
     if (resolution.state.finished && resolution.state.outcome === "player_win") {
       const bossName = this.currentLocation?.bossName;
@@ -561,6 +591,9 @@ export class AppController {
 
     const sceneChangedAfterBattle = didSceneChange(this.world, previousPlayer, nextPlayer);
     const completedFieldMonsterId = resolution.state.finished ? this.activeFieldMonsterId : null;
+    const shouldCreateDeathGrave = resolution.state.finished
+      && resolution.state.outcome === "enemy_win"
+      && battleSceneId !== null;
     const battleReport = createBattleReport({
       ...resolution,
       player: nextPlayer,
@@ -572,8 +605,12 @@ export class AppController {
       battleReport,
       chatMessages: sceneChangedAfterBattle ? [] : state.chatMessages,
       presence: sceneChangedAfterBattle ? [] : state.presence,
+      deathGraves: sceneChangedAfterBattle ? [] : state.deathGraves,
     });
     resolution.logs.slice(-4).forEach((entry) => this.store.pushLog(entry));
+    if (shouldCreateDeathGrave) {
+      this.presence.createDeathGrave(battleSceneId, gravePosition.x, gravePosition.y, defeatedBy);
+    }
     if (sceneChangedAfterBattle) {
       this.enterPresence(nextPlayer, true);
       this.syncLocationStoryState(nextPlayer.locationKey);
@@ -737,6 +774,7 @@ export class AppController {
       connectionStatus: "offline",
       presence: [],
       fieldMonsters: [],
+      deathGraves: [],
     });
 
     if (shouldLog) {
@@ -750,6 +788,7 @@ export class AppController {
       connectionStatus: "offline",
       presence: [],
       fieldMonsters: [],
+      deathGraves: [],
     });
 
     if (state.player) {
@@ -763,6 +802,10 @@ export class AppController {
 
   private setFieldMonsters(snapshot: FieldMonsterState[]): void {
     this.store.setState({ fieldMonsters: snapshot });
+  }
+
+  private setDeathGraves(snapshot: DeathGraveState[]): void {
+    this.store.setState({ deathGraves: snapshot });
   }
 
   private handlePresenceJoined(presence: PresenceState): void {
