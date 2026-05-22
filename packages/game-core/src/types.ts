@@ -265,6 +265,7 @@ export type FieldMonsterState = {
   texturePath: string;
   x: number;
   y: number;
+  zoneId?: string;
   isBoss: boolean;
   inBattleBy?: string;
   spawnedAt: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStarterPlayer, type LocationNode, type WorldContent } from "@rpg/game-core";
+import { createStarterPlayer, toLocationKey, toStableId, type LocationNode, type WorldContent } from "@rpg/game-core";
 import {
   advanceDialogueProgress,
   createLocationStoryDialogue,
@@ -88,5 +88,32 @@ describe("location story helpers", () => {
     });
     expect(npcAdvanced.completedLocationStory).toBe(false);
     expect(npcAdvanced.player.storyState[baseLocation.key]?.completed).toBe(false);
+  });
+
+  it("adds the starter sword when the starting blacksmith dialogue ends", () => {
+    const blacksmithLocationKey = toLocationKey("시작의 마을", "무기 상점");
+    const starterSwordId = toStableId("equipment", "마을의 검");
+    const player = {
+      ...createStarterPlayer("tester", baseWorld),
+      locationKey: blacksmithLocationKey,
+      storyState: {
+        ...createStarterPlayer("tester", baseWorld).storyState,
+        [blacksmithLocationKey]: {
+          completed: false,
+          currentIndex: 0,
+        },
+      },
+    };
+
+    const advanced = advanceDialogueProgress(player, {
+      kind: "npc",
+      title: "대장장이",
+      locationKey: blacksmithLocationKey,
+      lines: ["마을의 검을 주지."],
+      index: 0,
+    });
+
+    expect(advanced.player.ownedEquipmentIds).toContain(starterSwordId);
+    expect(advanced.rewardMessages).toEqual(["대장장이가 '마을의 검'을 지급하였습니다."]);
   });
 });

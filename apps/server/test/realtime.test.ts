@@ -99,16 +99,42 @@ function createFieldMonsterWorld(options: { boss?: boolean } = {}): WorldContent
               lines: ["Stay alert."],
             },
           ],
-          encounterZones: [
-            {
-              id: "encounter-field",
-              x: 180,
-              y: 170,
-              width: 560,
-              height: 420,
-              enemyIds,
-            },
-          ],
+          encounterZones: options.boss
+            ? []
+            : [
+                {
+                  id: "encounter-field-1",
+                  x: 180,
+                  y: 170,
+                  width: 180,
+                  height: 120,
+                  enemyIds,
+                },
+                {
+                  id: "encounter-field-2",
+                  x: 560,
+                  y: 170,
+                  width: 180,
+                  height: 120,
+                  enemyIds,
+                },
+                {
+                  id: "encounter-field-3",
+                  x: 180,
+                  y: 470,
+                  width: 180,
+                  height: 120,
+                  enemyIds,
+                },
+                {
+                  id: "encounter-field-4",
+                  x: 560,
+                  y: 470,
+                  width: 180,
+                  height: 120,
+                  enemyIds,
+                },
+              ],
           collisionZones: [],
           assets: {
             layoutId: options.boss ? "boss_arena" : "field",
@@ -590,6 +616,9 @@ describe("realtime presence", () => {
 
       expect(normalMonsters).toHaveLength(20);
       expect(normalMonsters.every((monster) => monster.sceneId === "scene-field")).toBe(true);
+      ["encounter-field-1", "encounter-field-2", "encounter-field-3", "encounter-field-4"].forEach((zoneId) => {
+        expect(normalMonsters.filter((monster) => monster.zoneId === zoneId)).toHaveLength(5);
+      });
       const location = world.locations[world.startLocationKey]!;
       const portal = location.scene.portals[0]!;
       const npcBlock = { x: 816, y: 208, width: 48, height: 64 };
@@ -667,6 +696,7 @@ describe("realtime presence", () => {
       socketA.emit("presence:join", { sceneId: "scene-field", x: 72, y: 72, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
       const initialBosses = await snapshotA;
       expect(initialBosses.filter((monster) => monster.isBoss)).toHaveLength(1);
+      expect(initialBosses.every((monster) => monster.zoneId === undefined)).toBe(true);
 
       const snapshotB = onceEvent<FieldMonsterState[]>(socketB, "field-monsters:snapshot");
       socketB.emit("presence:join", { sceneId: "scene-field", x: 90, y: 72, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
