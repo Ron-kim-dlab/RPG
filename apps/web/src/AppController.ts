@@ -1,9 +1,9 @@
 import type {
   BattleAction,
   DialogueNpc,
-  EncounterZone,
   EquipmentDefinition,
   Facing,
+  FieldMonsterState,
   LocationNode,
   PlayerSave,
   PresenceState,
@@ -19,7 +19,6 @@ import {
   getMaxMp,
   PLAYER_AVATAR_IDS,
   performBattleAction,
-  pickRandom,
   toggleEquippedEquipmentId,
 } from "@rpg/game-core";
 import { validateAuthCredentials } from "./auth";
@@ -44,7 +43,12 @@ function pickPlayerAvatarId(): string {
 }
 
 type GameRuntime = {
-  sync: (world: WorldContent | null, player: PlayerSave | null, nearbyPlayers: PresenceState[]) => void;
+  sync: (
+    world: WorldContent | null,
+    player: PlayerSave | null,
+    nearbyPlayers: PresenceState[],
+    fieldMonsters: FieldMonsterState[],
+  ) => void;
   destroy: () => void;
 };
 
@@ -58,7 +62,7 @@ type GameBridgeCallbacks = {
   onSceneChange: (locationKey: string) => void;
   onOpenLocationStory: () => void;
   onInteractNpc: (npc: DialogueNpc) => void;
-  onEncounter: (zone: EncounterZone) => void;
+  onFieldMonsterContact: (monster: FieldMonsterState) => void;
   onFieldPromptChange: (prompt: FieldPrompt) => void;
 };
 
@@ -72,6 +76,8 @@ export class AppController {
   private hasRetriedGameLoad = false;
   private readonly playerAvatarId = pickPlayerAvatarId();
   private readonly presence: PresenceClient;
+  private activeFieldMonsterId: string | null = null;
+  private pendingFieldMonsterId: string | null = null;
   private lastSavedAt = 0;
   private readonly handleGlobalKeydown = (event: KeyboardEvent) => {
     if (this.isGameplayInputBlocked(event.target)) {
@@ -142,6 +148,8 @@ export class AppController {
           chatMessages: [...state.chatMessages, message].slice(-40),
         }));
       },
+      onFieldMonstersSnapshot: (snapshot) => this.setFieldMonsters(snapshot),
+      onFieldMonstersUpdate: (snapshot) => this.setFieldMonsters(snapshot),
       onConnect: () => this.handleRealtimeConnect(),
       onDisconnect: (reason) => this.handleRealtimeDisconnect(reason),
       onConnectError: (message) => this.handleRealtimeConnectError(message),
@@ -176,7 +184,7 @@ export class AppController {
         : [];
 
       this.ui.render(state, currentLocation, equipmentForLocation, skillsForLocation, equipped, ownedEquipment, learnedSkills, learnedTactics);
-      this.game?.sync(state.world, state.player, state.presence);
+      this.game?.sync(state.world, state.player, state.presence, state.fieldMonsters);
     });
 
     window.addEventListener("keydown", this.handleGlobalKeydown);
@@ -257,8 +265,8 @@ export class AppController {
       },
       onOpenLocationStory: () => this.openCurrentLocationStory(),
       onInteractNpc: (npc) => this.openNpcDialogue(npc),
-      onEncounter: (zone) => {
-        void this.startEncounter(zone);
+      onFieldMonsterContact: (monster) => {
+        void this.startFieldMonsterBattle(monster);
       },
       onFieldPromptChange: (prompt) => this.store.setState({ fieldPrompt: prompt }),
     };
@@ -280,7 +288,7 @@ export class AppController {
             this.gameRetryTimer = null;
           }
           const state = this.store.getState();
-          game.sync(state.world, state.player, state.presence);
+          game.sync(state.world, state.player, state.presence, state.fieldMonsters);
           return game;
         })
         .catch((error) => {
@@ -329,6 +337,7 @@ export class AppController {
         dialogue: null,
         chatMessages: [],
         presence: [],
+        fieldMonsters: [],
         pending: false,
       });
       this.loadGameBridge();
@@ -383,6 +392,7 @@ export class AppController {
       player: nextPlayer,
       battleReport: null,
       presence: [],
+      fieldMonsters: [],
       chatMessages: [],
     });
     this.enterPresence(nextPlayer, true);
@@ -479,20 +489,39 @@ export class AppController {
     }
   }
 
-  private async startEncounter(zone: EncounterZone): Promise<void> {
+  private async startFieldMonsterBattle(monster: FieldMonsterState): Promise<void> {
     const state = this.store.getState();
-    if (!state.player || state.battle) {
+    if (!state.player || state.battle || this.activeFieldMonsterId || this.pendingFieldMonsterId) {
       return;
     }
 
-    const enemyId = pickRandom(zone.enemyIds, Math.random);
-    const enemy = this.world.enemies[enemyId];
+    this.pendingFieldMonsterId = monster.id;
+    const claim = await this.presence.claimFieldMonster(monster.id);
+    this.pendingFieldMonsterId = null;
+
+    if (!claim.ok) {
+      if (claim.reason === "busy") {
+        this.store.pushLog(`${monster.enemyName}은 이미 다른 전투에 묶여 있습니다.`);
+      }
+      return;
+    }
+
+    const nextState = this.store.getState();
+    const currentSceneId = nextState.player ? this.world.locations[nextState.player.locationKey]?.scene.sceneId : null;
+    if (!nextState.player || nextState.battle || currentSceneId !== claim.monster.sceneId) {
+      this.presence.releaseFieldMonster(claim.monster.id);
+      return;
+    }
+
+    const enemy = this.world.enemies[claim.monster.enemyId];
     if (!enemy) {
+      this.presence.releaseFieldMonster(claim.monster.id);
       return;
     }
 
+    this.activeFieldMonsterId = claim.monster.id;
     this.store.setState({
-      battle: createBattle(state.player, enemy),
+      battle: createBattle(nextState.player, enemy),
       battleReport: null,
     });
     this.store.pushLog(`${enemy.name}과(와) 전투를 시작합니다.`);
@@ -531,6 +560,7 @@ export class AppController {
     }
 
     const sceneChangedAfterBattle = didSceneChange(this.world, previousPlayer, nextPlayer);
+    const completedFieldMonsterId = resolution.state.finished ? this.activeFieldMonsterId : null;
     const battleReport = createBattleReport({
       ...resolution,
       player: nextPlayer,
@@ -547,6 +577,10 @@ export class AppController {
     if (sceneChangedAfterBattle) {
       this.enterPresence(nextPlayer, true);
       this.syncLocationStoryState(nextPlayer.locationKey);
+    }
+    if (completedFieldMonsterId) {
+      this.presence.releaseFieldMonster(completedFieldMonsterId);
+      this.activeFieldMonsterId = null;
     }
     await this.savePlayer();
   }
@@ -702,6 +736,7 @@ export class AppController {
     this.store.setState({
       connectionStatus: "offline",
       presence: [],
+      fieldMonsters: [],
     });
 
     if (shouldLog) {
@@ -714,6 +749,7 @@ export class AppController {
     this.store.setState({
       connectionStatus: "offline",
       presence: [],
+      fieldMonsters: [],
     });
 
     if (state.player) {
@@ -723,6 +759,10 @@ export class AppController {
 
   private setPresence(snapshot: PresenceState[]): void {
     this.store.setState({ presence: snapshot });
+  }
+
+  private setFieldMonsters(snapshot: FieldMonsterState[]): void {
+    this.store.setState({ fieldMonsters: snapshot });
   }
 
   private handlePresenceJoined(presence: PresenceState): void {

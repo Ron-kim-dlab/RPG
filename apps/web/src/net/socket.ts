@@ -1,5 +1,11 @@
 import { io, type Socket } from "socket.io-client";
-import type { ChatMessage, Facing, PresenceState } from "@rpg/game-core";
+import type {
+  ChatMessage,
+  Facing,
+  FieldMonsterClaimResult,
+  FieldMonsterState,
+  PresenceState,
+} from "@rpg/game-core";
 
 type PresenceIntent = {
   sceneId: string;
@@ -15,6 +21,8 @@ type RealtimeHandlers = {
   onPresenceUpdate: (presence: PresenceState) => void;
   onPresenceLeft: (username: string) => void;
   onChatMessage: (message: ChatMessage) => void;
+  onFieldMonstersSnapshot: (snapshot: FieldMonsterState[]) => void;
+  onFieldMonstersUpdate: (snapshot: FieldMonsterState[]) => void;
   onConnect: () => void;
   onDisconnect: (reason: string) => void;
   onConnectError: (message: string) => void;
@@ -58,6 +66,8 @@ export class PresenceClient {
     this.socket.on("presence:update", this.handlers.onPresenceUpdate);
     this.socket.on("presence:left", this.handlers.onPresenceLeft);
     this.socket.on("chat:message", this.handlers.onChatMessage);
+    this.socket.on("field-monsters:snapshot", this.handlers.onFieldMonstersSnapshot);
+    this.socket.on("field-monsters:update", this.handlers.onFieldMonstersUpdate);
   }
 
   disconnect(): void {
@@ -98,6 +108,38 @@ export class PresenceClient {
   sendChat(text: string): void {
     if (this.isConnected) {
       this.socket?.emit("chat:send", { text });
+    }
+  }
+
+  claimFieldMonster(monsterId: string): Promise<FieldMonsterClaimResult> {
+    if (!this.isConnected || !this.socket) {
+      return Promise.resolve({ ok: false, reason: "offline" });
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const timer = globalThis.setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve({ ok: false, reason: "offline" });
+      }, 1500);
+
+      this.socket?.emit("field-monsters:claim", { monsterId }, (result: FieldMonsterClaimResult) => {
+        if (settled) {
+          return;
+        }
+        globalThis.clearTimeout(timer);
+        settled = true;
+        resolve(result);
+      });
+    });
+  }
+
+  releaseFieldMonster(monsterId: string): void {
+    if (this.isConnected) {
+      this.socket?.emit("field-monsters:release", { monsterId });
     }
   }
 

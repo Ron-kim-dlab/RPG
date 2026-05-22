@@ -4,6 +4,7 @@ import {
   type DialogueNpc,
   type EncounterZone,
   type Facing,
+  type FieldMonsterState,
   type PlayerSave,
   type PresenceState,
   type SceneDefinition,
@@ -21,7 +22,7 @@ type SceneCallbacks = {
   onSceneChange: (locationKey: string) => void;
   onOpenLocationStory: () => void;
   onInteractNpc: (npc: DialogueNpc) => void;
-  onEncounter: (zone: EncounterZone) => void;
+  onFieldMonsterContact: (monster: FieldMonsterState) => void;
   onFieldPromptChange: (prompt: FieldPrompt) => void;
 };
 
@@ -59,8 +60,18 @@ type RemotePlayerSprite = {
   targetY: number;
 };
 
+type FieldMonsterSprite = {
+  container: Phaser.GameObjects.Container;
+  sprite: Phaser.GameObjects.Sprite;
+  label: Phaser.GameObjects.Text;
+  texturePath: string;
+};
+
 const REMOTE_INTERPOLATION_SPEED = 12;
 const REMOTE_SNAP_DISTANCE = 240;
+const MONSTER_CONTACT_DISTANCE = 42;
+const BOSS_CONTACT_DISTANCE = 58;
+const MONSTER_CONTACT_COOLDOWN_MS = 1200;
 
 export class OverworldScene extends Phaser.Scene {
   private world: WorldContent | null = null;
@@ -69,6 +80,8 @@ export class OverworldScene extends Phaser.Scene {
   private callbacks: SceneCallbacks | null = null;
   private playerSprite!: Phaser.GameObjects.Sprite;
   private remoteSprites = new Map<string, RemotePlayerSprite>();
+  private fieldMonsterSprites = new Map<string, FieldMonsterSprite>();
+  private fieldMonsters: FieldMonsterState[] = [];
   private portals: Array<{ zone: Phaser.Geom.Rectangle; locationKey: string; label: string }> = [];
   private encounterZones: Array<{ zone: Phaser.Geom.Rectangle; data: EncounterZone }> = [];
   private collisionZones: Phaser.Geom.Rectangle[] = [];
@@ -80,13 +93,14 @@ export class OverworldScene extends Phaser.Scene {
   private keyD!: Phaser.Input.Keyboard.Key;
   private keyEnter!: Phaser.Input.Keyboard.Key;
   private keySpace!: Phaser.Input.Keyboard.Key;
-  private keyBattle!: Phaser.Input.Keyboard.Key;
   private hintText!: Phaser.GameObjects.Text;
   private overlayShade!: Phaser.GameObjects.Rectangle;
   private overlayText!: Phaser.GameObjects.Text;
   private lastPresenceSentAt = 0;
   private lastBroadcastKey = "";
   private lastPromptKey = "";
+  private lastFieldMonsterContactId = "";
+  private lastFieldMonsterContactAt = 0;
   private gameplayCaptureDisabled = false;
 
   constructor() {
@@ -101,7 +115,6 @@ export class OverworldScene extends Phaser.Scene {
     this.keyD = this.input.keyboard!.addKey("D");
     this.keyEnter = this.input.keyboard!.addKey("ENTER");
     this.keySpace = this.input.keyboard!.addKey("SPACE");
-    this.keyBattle = this.input.keyboard!.addKey("B");
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.keyboard?.resetKeys();
       this.gameplayCaptureDisabled = false;
@@ -125,16 +138,18 @@ export class OverworldScene extends Phaser.Scene {
     }
   }
 
-  sync(player: PlayerSave, nearbyPlayers: PresenceState[]): void {
+  sync(player: PlayerSave, nearbyPlayers: PresenceState[], fieldMonsters: FieldMonsterState[]): void {
     this.playerState = player;
     const location = this.world?.locations[player.locationKey];
     if (location && location.scene.sceneId !== this.sceneDefinition?.sceneId) {
       this.buildLocation();
     }
+    this.fieldMonsters = fieldMonsters.filter((monster) => monster.sceneId === this.sceneDefinition?.sceneId);
 
     if (this.playerSprite) {
       this.playerSprite.setPosition(player.position.x, player.position.y);
     }
+    this.syncFieldMonsterSprites(this.fieldMonsters);
 
     const activeUsers = new Set<string>();
     nearbyPlayers
@@ -207,14 +222,13 @@ export class OverworldScene extends Phaser.Scene {
 
     const activePortal = this.findActivePortal(nextX, nextY);
     const activeNpc = this.findActiveNpc(nextX, nextY);
-    const activeEncounter = this.findActiveEncounter(nextX, nextY);
+    const activeFieldMonster = this.findActiveFieldMonster(nextX, nextY);
     const hasPendingLocationStory = this.callbacks.hasPendingLocationStory();
     const prompt = this.resolvePrompt({
       overlayMode,
       hasPendingLocationStory,
       portal: activePortal,
       npc: activeNpc?.npc ?? null,
-      encounter: activeEncounter?.data ?? null,
     });
     this.syncFieldPrompt(prompt);
     this.syncOverlayState(overlayMode);
@@ -241,9 +255,18 @@ export class OverworldScene extends Phaser.Scene {
       return;
     }
 
-    if (activeEncounter && Phaser.Input.Keyboard.JustDown(this.keyBattle)) {
-      this.callbacks.onEncounter(activeEncounter.data);
+    if (activeFieldMonster) {
+      const shouldContact = this.lastFieldMonsterContactId !== activeFieldMonster.id
+        || time - this.lastFieldMonsterContactAt > MONSTER_CONTACT_COOLDOWN_MS;
+      if (shouldContact) {
+        this.lastFieldMonsterContactId = activeFieldMonster.id;
+        this.lastFieldMonsterContactAt = time;
+        this.callbacks.onFieldMonsterContact(activeFieldMonster);
+      }
+      return;
     }
+
+    this.lastFieldMonsterContactId = "";
   }
 
   private syncRemotePresence(presence: PresenceState): void {
@@ -300,6 +323,61 @@ export class OverworldScene extends Phaser.Scene {
     });
   }
 
+  private syncFieldMonsterSprites(monsters: FieldMonsterState[]): void {
+    if (!this.sceneDefinition) {
+      return;
+    }
+
+    const activeIds = new Set<string>();
+    monsters.forEach((monster) => {
+      activeIds.add(monster.id);
+      const existing = this.fieldMonsterSprites.get(monster.id);
+      if (existing) {
+        existing.container.setPosition(monster.x, monster.y);
+        existing.container.setAlpha(monster.inBattleBy ? 0.42 : 1);
+        existing.label.setText(monster.inBattleBy ? `${monster.enemyName} (전투 중)` : monster.enemyName);
+        if (existing.texturePath !== monster.texturePath) {
+          existing.sprite.setTexture(monster.texturePath);
+          existing.texturePath = monster.texturePath;
+        }
+        return;
+      }
+
+      const displaySize = monster.isBoss ? 56 : 40;
+      const shadow = this.add.ellipse(0, displaySize / 2 - 6, displaySize * 0.8, 12, 0x06100d, 0.38);
+      const sprite = this.add
+        .sprite(0, 0, monster.texturePath)
+        .setDisplaySize(displaySize, displaySize);
+      if (monster.isBoss) {
+        sprite.setTint(0xffe08a);
+      }
+      const label = this.createReadableLabel(0, -displaySize / 2 - 8, monster.enemyName, {
+        backgroundColor: monster.isBoss ? "rgba(66, 28, 16, 0.92)" : "rgba(8, 22, 17, 0.9)",
+        color: monster.isBoss ? "#fff1b8" : "#f8fafc",
+        depth: monster.isBoss ? 8 : 6,
+        fontSize: monster.isBoss ? "12px" : "11px",
+        originY: 1,
+      });
+      const container = this.add
+        .container(monster.x, monster.y, [shadow, sprite, label])
+        .setDepth(monster.isBoss ? 7 : 5)
+        .setAlpha(monster.inBattleBy ? 0.42 : 1);
+      this.fieldMonsterSprites.set(monster.id, {
+        container,
+        sprite,
+        label,
+        texturePath: monster.texturePath,
+      });
+    });
+
+    Array.from(this.fieldMonsterSprites.entries()).forEach(([monsterId, rendered]) => {
+      if (!activeIds.has(monsterId)) {
+        rendered.container.destroy();
+        this.fieldMonsterSprites.delete(monsterId);
+      }
+    });
+  }
+
   private syncGameplayCapture(gameplayInputBlocked: boolean): void {
     const keyboard = this.input.keyboard;
     if (!keyboard || gameplayInputBlocked === this.gameplayCaptureDisabled) {
@@ -327,6 +405,7 @@ export class OverworldScene extends Phaser.Scene {
     }
 
     this.sceneDefinition = location.scene;
+    this.fieldMonsters = this.fieldMonsters.filter((monster) => monster.sceneId === location.scene.sceneId);
     this.cameras.main.setBackgroundColor(location.scene.backgroundColor);
 
     this.children.removeAll(true);
@@ -336,8 +415,11 @@ export class OverworldScene extends Phaser.Scene {
     this.npcMarkers = [];
     this.lastPromptKey = "";
     this.lastBroadcastKey = "";
+    this.lastFieldMonsterContactId = "";
     this.remoteSprites.forEach((remote) => remote.container.destroy());
     this.remoteSprites.clear();
+    this.fieldMonsterSprites.forEach((monster) => monster.container.destroy());
+    this.fieldMonsterSprites.clear();
 
     this.renderSceneMap(location.scene);
 
@@ -487,6 +569,7 @@ export class OverworldScene extends Phaser.Scene {
       )
       .setDisplaySize(32, 32)
       .setDepth(8);
+    this.syncFieldMonsterSprites(this.fieldMonsters);
     this.hintText = this.createReadableLabel(
       this.playerState.position.x,
       this.playerState.position.y - 34,
@@ -527,8 +610,14 @@ export class OverworldScene extends Phaser.Scene {
     return this.npcMarkers.find(({ sprite }) => Phaser.Math.Distance.Between(sprite.x, sprite.y, x, y) < 64) ?? null;
   }
 
-  private findActiveEncounter(x: number, y: number): { zone: Phaser.Geom.Rectangle; data: EncounterZone } | null {
-    return this.encounterZones.find(({ zone }) => Phaser.Geom.Rectangle.Contains(zone, x, y)) ?? null;
+  private findActiveFieldMonster(x: number, y: number): FieldMonsterState | null {
+    return this.fieldMonsters.find((monster) => {
+      if (monster.inBattleBy) {
+        return false;
+      }
+      const contactDistance = monster.isBoss ? BOSS_CONTACT_DISTANCE : MONSTER_CONTACT_DISTANCE;
+      return Phaser.Math.Distance.Between(monster.x, monster.y, x, y) <= contactDistance;
+    }) ?? null;
   }
 
   private resolvePrompt(params: {
@@ -536,7 +625,6 @@ export class OverworldScene extends Phaser.Scene {
     hasPendingLocationStory: boolean;
     portal: { label: string } | null;
     npc: DialogueNpc | null;
-    encounter: EncounterZone | null;
   }): FieldPrompt {
     if (params.overlayMode === "battle") {
       return {
@@ -578,16 +666,6 @@ export class OverworldScene extends Phaser.Scene {
       };
     }
 
-    if (params.encounter) {
-      return {
-        kind: "encounter",
-        title: "적 조우 가능 구역",
-        body: "B 키를 눌러 현재 지역 적과 교전할 수 있습니다.",
-        actionLabel: "B",
-        tone: "danger",
-      };
-    }
-
     if (params.hasPendingLocationStory) {
       return {
         kind: "story",
@@ -601,8 +679,8 @@ export class OverworldScene extends Phaser.Scene {
     return {
       kind: "idle",
       title: this.sceneDefinition?.sceneId ?? "오버월드 탐험",
-      body: "WASD 이동, Enter 씬 전환, Space 대화, B 전투로 현재 지역을 탐험하세요.",
-      actionLabel: "WASD / Space / Enter / B",
+      body: "WASD 이동, Enter 씬 전환, Space 대화로 현재 지역을 탐험하세요.",
+      actionLabel: "WASD / Space / Enter",
       tone: "neutral",
     };
   }
@@ -651,8 +729,6 @@ export class OverworldScene extends Phaser.Scene {
         return `${prompt.title.replace(/ 준비$/, "")}하려면 ${prompt.actionLabel} 누르기`;
       case "npc":
         return `${prompt.title}하려면 ${prompt.actionLabel} 누르기`;
-      case "encounter":
-        return `전투하려면 ${prompt.actionLabel} 누르기`;
       case "story":
         return `이야기 보려면 ${prompt.actionLabel} 누르기`;
       default:

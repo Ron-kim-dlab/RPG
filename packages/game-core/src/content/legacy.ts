@@ -500,6 +500,9 @@ export function buildWorldContentFromLegacy(input: {
           id,
           name: enemy.이름,
           texturePath: getEnemyTexturePath({ name: enemy.이름, mainLocation, subLocation }),
+          spawnRate: typeof enemy.spawn_rate === "number" && Number.isFinite(enemy.spawn_rate) && enemy.spawn_rate > 0
+            ? enemy.spawn_rate
+            : 1,
           maxHp: enemy.체력,
           attack: enemy.공격력,
           defense: enemy.방어력,

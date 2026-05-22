@@ -1,4 +1,11 @@
-import type { BattleState, ChatMessage, PlayerSave, PresenceState, WorldContent } from "@rpg/game-core";
+import type {
+  BattleState,
+  ChatMessage,
+  FieldMonsterState,
+  PlayerSave,
+  PresenceState,
+  WorldContent,
+} from "@rpg/game-core";
 import type { BattleReport, FieldPrompt } from "../gameplay";
 
 export type DialogueState = {
@@ -16,6 +23,7 @@ export type AppState = {
   battle: BattleState | null;
   battleReport: BattleReport | null;
   presence: PresenceState[];
+  fieldMonsters: FieldMonsterState[];
   chatMessages: ChatMessage[];
   dialogue: DialogueState | null;
   fieldPrompt: FieldPrompt | null;
@@ -35,6 +43,7 @@ export class AppStore {
     battle: null,
     battleReport: null,
     presence: [],
+    fieldMonsters: [],
     chatMessages: [],
     dialogue: null,
     fieldPrompt: null,

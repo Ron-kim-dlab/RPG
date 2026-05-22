@@ -5,7 +5,13 @@ import boss from "../../../game/boss.json";
 import equipment from "../../../game/equipment.json";
 import skill from "../../../game/skill.json";
 import tactics from "../../../game/tactics.json";
-import { buildWorldContentFromLegacy, createSceneLayout, createScenePortalSlots, validateWorldContent } from "../src";
+import {
+  buildWorldContentFromLegacy,
+  createSceneLayout,
+  createScenePortalSlots,
+  validateWorldContent,
+  type LegacyMonsterData,
+} from "../src";
 
 function rectanglesOverlap(
   left: { x: number; y: number; width: number; height: number },
@@ -92,6 +98,27 @@ describe("legacy content conversion", () => {
     });
 
     expect(issues.some((entry) => entry.path.endsWith("assets.mapJsonPath"))).toBe(true);
+  });
+
+  it("maps optional monster spawn_rate values into shared spawn weights", () => {
+    const monstersWithRates = structuredClone(monster) as LegacyMonsterData;
+    const firstMonster = Object.values(monstersWithRates)
+      .flatMap((subLocations) => Object.values(subLocations))
+      .find((enemies) => enemies.length > 0)?.[0];
+    expect(firstMonster).toBeTruthy();
+    firstMonster!.spawn_rate = 7;
+
+    const world = buildWorldContentFromLegacy({
+      map,
+      monsters: monstersWithRates,
+      bosses: boss,
+      equipment: equipment as never,
+      skills: skill as never,
+      tactics: tactics as never,
+    });
+
+    const convertedEnemy = Object.values(world.enemies).find((enemy) => enemy.name === firstMonster!.이름 && enemy.spawnRate === 7);
+    expect(convertedEnemy?.spawnRate).toBe(7);
   });
 
   it("creates non-overlapping portal slots when a layout needs more than four exits", () => {

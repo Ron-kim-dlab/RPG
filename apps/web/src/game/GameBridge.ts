@@ -1,5 +1,12 @@
 import type Phaser from "phaser";
-import type { DialogueNpc, EncounterZone, Facing, PlayerSave, PresenceState, WorldContent } from "@rpg/game-core";
+import type {
+  DialogueNpc,
+  Facing,
+  FieldMonsterState,
+  PlayerSave,
+  PresenceState,
+  WorldContent,
+} from "@rpg/game-core";
 import type { FieldPrompt, OverlayMode } from "../gameplay";
 import type { OverworldScene } from "./OverworldScene";
 import { INITIAL_SCENE, shouldDisableGlobalKeyboardCapture, type ManagedSceneKey } from "./sceneFlow";
@@ -14,7 +21,7 @@ type BridgeCallbacks = {
   onSceneChange: (locationKey: string) => void;
   onOpenLocationStory: () => void;
   onInteractNpc: (npc: DialogueNpc) => void;
-  onEncounter: (zone: EncounterZone) => void;
+  onFieldMonsterContact: (monster: FieldMonsterState) => void;
   onFieldPromptChange: (prompt: FieldPrompt) => void;
 };
 
@@ -72,7 +79,12 @@ export class GameBridge {
     return bridge;
   }
 
-  sync(world: WorldContent | null, player: PlayerSave | null, nearbyPlayers: PresenceState[]): void {
+  sync(
+    world: WorldContent | null,
+    player: PlayerSave | null,
+    nearbyPlayers: PresenceState[],
+    fieldMonsters: FieldMonsterState[],
+  ): void {
     if (!world) {
       return;
     }
@@ -83,7 +95,7 @@ export class GameBridge {
     }
 
     this.overworldScene.attach(world, player, this.callbacks);
-    this.overworldScene.sync(player, nearbyPlayers);
+    this.overworldScene.sync(player, nearbyPlayers, fieldMonsters);
     this.ensureScene("overworld");
   }
 

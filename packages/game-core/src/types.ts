@@ -84,6 +84,7 @@ export type EnemyDefinition = {
   id: string;
   name: string;
   texturePath: string;
+  spawnRate?: number;
   currentHp?: number;
   maxHp: number;
   attack: number;
@@ -256,6 +257,23 @@ export type ChatMessage = {
   createdAt: string;
 };
 
+export type FieldMonsterState = {
+  id: string;
+  sceneId: string;
+  enemyId: string;
+  enemyName: string;
+  texturePath: string;
+  x: number;
+  y: number;
+  isBoss: boolean;
+  inBattleBy?: string;
+  spawnedAt: string;
+};
+
+export type FieldMonsterClaimResult =
+  | { ok: true; monster: FieldMonsterState }
+  | { ok: false; reason: "busy" | "invalid_scene" | "not_found" | "offline" };
+
 export type WorldContent = {
   startLocationKey: string;
   locations: Record<string, LocationNode>;
@@ -340,6 +358,7 @@ export type LegacyEquipmentData = Array<{
 
 export type LegacyEnemyUnit = {
   이름: string;
+  spawn_rate?: number;
   체력: number;
   공격력: number;
   경험치: number;
