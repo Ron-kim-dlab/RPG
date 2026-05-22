@@ -52,6 +52,7 @@ type LayoutGesture =
 type SidePanelKey = Extract<FloatingPanelKey, "action" | "battle" | "log">;
 
 const SIDE_PANEL_KEYS: SidePanelKey[] = ["action", "battle", "log"];
+const SHOP_SUB_LOCATIONS = new Set(["무기 상점", "기술 상점"]);
 
 function escapeHtml(value: unknown): string {
   return String(value)
@@ -78,6 +79,7 @@ export class DomUi {
   private activeSidePanel: SidePanelKey = "action";
   private actionPanelWasVisible = false;
   private battlePanelWasVisible = false;
+  private lastActionLocationKey = "";
   private panelLayouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>> = {};
   private savedPanelLayouts: Partial<Record<FloatingPanelKey, FloatingPanelLayout>> = {};
   private collapsedPanels: FloatingPanelCollapsedState = {};
@@ -262,6 +264,10 @@ export class DomUi {
       button.classList.toggle("active", isActive);
       button.setAttribute("aria-expanded", String(isActive));
     });
+  }
+
+  private shouldOpenActionPanelOnLocationEntry(location: LocationNode): boolean {
+    return SHOP_SUB_LOCATIONS.has(location.subLocation);
   }
 
   private measurePanelLayout(key: FloatingPanelKey): FloatingPanelLayout | null {
@@ -756,12 +762,16 @@ export class DomUi {
     const { player, battle, battleReport } = state;
     if (!player || !currentLocation) {
       this.actionPanelWasVisible = false;
+      this.lastActionLocationKey = "";
       this.actionPanel.classList.remove("visible");
       this.actionPanel.innerHTML = "";
       return;
     }
 
-    if (!this.actionPanelWasVisible) {
+    const enteredNewLocation = this.lastActionLocationKey !== currentLocation.key;
+    this.lastActionLocationKey = currentLocation.key;
+
+    if (!this.actionPanelWasVisible || (enteredNewLocation && this.shouldOpenActionPanelOnLocationEntry(currentLocation))) {
       this.activeSidePanel = "action";
       this.actionPanelWasVisible = true;
     }
@@ -868,7 +878,34 @@ export class DomUi {
       }).join("")
       : `<div class="inventory-empty">보유한 아이템이 없습니다.</div>`;
 
-    const hasContextActions = restingVisible || equipmentButtons || skillButtons;
+    const hasShopActions = equipmentButtons.length > 0 || skillButtons.length > 0;
+    const shopActionCount = equipmentForLocation.length + skillsForLocation.length;
+    const shopActions = hasShopActions
+      ? `
+        <section class="shop-board" aria-label="상점 판매 목록">
+          <div class="inventory-section-heading">
+            <h3>판매 목록</h3>
+            <span class="pill">${shopActionCount}</span>
+          </div>
+          <div class="dock-grid shop-list">
+            ${equipmentButtons}
+            ${skillButtons}
+          </div>
+        </section>
+      `
+      : "";
+    const utilityCards = [
+      restingVisible ? `<button class="dock-card accent" data-rest><strong>숙박</strong><span>20 코인으로 HP/MP 회복</span></button>` : "",
+      !restingVisible && !hasShopActions ? `<div class="dock-card static"><strong>탐험 구간</strong><span>출구 진입 후 Enter 로 씬 전환, NPC 근처에서 Space 로 대화</span></div>` : "",
+      battle ? `<div class="dock-card static danger"><strong>전투 진행 중</strong><span>오른쪽 전투 오버레이에서 행동을 선택하세요.</span></div>` : "",
+      battleReport ? `
+        <div class="dock-card static ${battleReport.outcome === "enemy_win" ? "danger" : "accent"} report-card">
+          <strong>${escapeHtml(battleReport.title)}</strong>
+          <span>${escapeHtml(battleReport.summary)}</span>
+          <span>최근 전투 로그 ${battleReport.lines.length}개가 오른쪽 패널에 반영되었습니다.</span>
+        </div>
+      ` : "",
+    ].filter(Boolean).join("");
     this.actionPanel.classList.add("visible");
     this.actionPanel.innerHTML = this.renderPanelFrame({
       key: "action",
@@ -902,21 +939,10 @@ export class DomUi {
             </div>
           </section>
         </div>
-        <div class="dock-grid">
-          ${restingVisible ? `<button class="dock-card accent" data-rest><strong>숙박</strong><span>20 코인으로 HP/MP 회복</span></button>` : ""}
-          ${equipmentButtons}
-          ${skillButtons}
-          ${!hasContextActions ? `<div class="dock-card static"><strong>탐험 구간</strong><span>출구 진입 후 Enter 로 씬 전환, NPC 근처에서 Space 로 대화</span></div>` : ""}
-          ${battle ? `<div class="dock-card static danger"><strong>전투 진행 중</strong><span>오른쪽 전투 오버레이에서 행동을 선택하세요.</span></div>` : ""}
-          ${battleReport ? `
-            <div class="dock-card static ${battleReport.outcome === "enemy_win" ? "danger" : "accent"} report-card">
-              <strong>${escapeHtml(battleReport.title)}</strong>
-              <span>${escapeHtml(battleReport.summary)}</span>
-              <span>최근 전투 로그 ${battleReport.lines.length}개가 오른쪽 패널에 반영되었습니다.</span>
-            </div>
-          ` : ""}
-        </div>
+        ${shopActions}
+        ${utilityCards ? `<div class="dock-grid utility-action-grid">${utilityCards}</div>` : ""}
       `,
+      bodyClassName: "action-panel-body",
     });
 
     this.actionPanel.querySelectorAll<HTMLButtonElement>("[data-equipment]").forEach((button) => {
