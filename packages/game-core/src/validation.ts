@@ -188,6 +188,10 @@ function validateEnemy(enemy: EnemyDefinition, path: string): ValidationIssue[] 
     issues.push(issue(`${path}.maxHp`, "Enemy maxHp must be greater than 0."));
   }
 
+  if (enemy.spawnRate !== undefined && (!Number.isFinite(enemy.spawnRate) || enemy.spawnRate <= 0)) {
+    issues.push(issue(`${path}.spawnRate`, "Enemy spawnRate must be a positive finite number."));
+  }
+
   if (!VALID_ENEMY_TEXTURES.has(enemy.texturePath)) {
     issues.push(issue(`${path}.texturePath`, "Enemy texture path is outside the shared monster asset set."));
   }

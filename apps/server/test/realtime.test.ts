@@ -1,7 +1,7 @@
 import type { AddressInfo } from "node:net";
 import { io as createClient, type Socket as ClientSocket } from "socket.io-client";
 import { describe, expect, it } from "vitest";
-import type { PresenceState, WorldContent } from "@rpg/game-core";
+import type { FieldMonsterClaimResult, FieldMonsterState, PresenceState, WorldContent } from "@rpg/game-core";
 import { createStarterPlayer, DEFAULT_PLAYER_AVATAR_ID } from "@rpg/game-core";
 import { createAppContext } from "../src/app";
 import { signToken } from "../src/http/auth";
@@ -54,6 +54,131 @@ function createWorld(): WorldContent {
   };
 }
 
+function createFieldMonsterWorld(options: { boss?: boolean } = {}): WorldContent {
+  const startLocationKey = "field::monster-zone";
+  const slimeId = "enemy-slime";
+  const wispId = "enemy-wisp";
+  const bossId = "boss-warden";
+  const enemyIds = options.boss ? [bossId] : [slimeId, wispId];
+  return {
+    startLocationKey,
+    locations: {
+      [startLocationKey]: {
+        key: startLocationKey,
+        mainLocation: "field",
+        subLocation: "monster-zone",
+        story: [],
+        bossName: options.boss ? "Warden" : undefined,
+        connections: [],
+        scene: {
+          sceneId: "scene-field",
+          themeId: "forest",
+          width: 1024,
+          height: 768,
+          tileSize: 32,
+          backgroundColor: "#10231b",
+          spawn: { x: 72, y: 72 },
+          portals: [
+            {
+              id: "portal-safe",
+              label: "safe",
+              toLocationKey: startLocationKey,
+              x: 32,
+              y: 300,
+              width: 72,
+              height: 112,
+            },
+          ],
+          npcs: [
+            {
+              id: "npc-keeper",
+              name: "Keeper",
+              x: 840,
+              y: 240,
+              texturePath: "/npc.svg",
+              lines: ["Stay alert."],
+            },
+          ],
+          encounterZones: [
+            {
+              id: "encounter-field",
+              x: 180,
+              y: 170,
+              width: 560,
+              height: 420,
+              enemyIds,
+            },
+          ],
+          collisionZones: [],
+          assets: {
+            layoutId: options.boss ? "boss_arena" : "field",
+            mapJsonPath: "/maps/test.json",
+            terrainTexturePath: "/terrain.svg",
+            propsTexturePath: "/props.svg",
+            playerTexturePath: "/player.svg",
+            remotePlayerTexturePath: "/remote.svg",
+            npcTexturePath: "/npc.svg",
+            portalTexturePath: "/portal.svg",
+            encounterTexturePath: "/encounter.svg",
+            license: "placeholder",
+            attribution: "test",
+          },
+        },
+      },
+    },
+    equipment: [],
+    skills: [],
+    tactics: [],
+    enemies: {
+      [slimeId]: {
+        id: slimeId,
+        name: "Slime",
+        texturePath: "/slime.svg",
+        spawnRate: 1,
+        maxHp: 10,
+        attack: 2,
+        defense: 0,
+        speed: 1,
+        accuracy: 1,
+        mana: 0,
+        experienceReward: 1,
+        coinReward: 1,
+      },
+      [wispId]: {
+        id: wispId,
+        name: "Wisp",
+        texturePath: "/wisp.svg",
+        spawnRate: 3,
+        maxHp: 12,
+        attack: 3,
+        defense: 0,
+        speed: 2,
+        accuracy: 1,
+        mana: 0,
+        experienceReward: 2,
+        coinReward: 2,
+      },
+      [bossId]: {
+        id: bossId,
+        name: "Warden",
+        texturePath: "/warden.svg",
+        maxHp: 40,
+        attack: 6,
+        defense: 2,
+        speed: 1,
+        accuracy: 1,
+        mana: 0,
+        experienceReward: 10,
+        coinReward: 10,
+        isBoss: true,
+      },
+    },
+    enemiesByLocation: {
+      [startLocationKey]: enemyIds,
+    },
+  };
+}
+
 function onceEvent<T>(socket: ClientSocket, eventName: string, timeoutMs = 5_000): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -70,6 +195,19 @@ function onceEvent<T>(socket: ClientSocket, eventName: string, timeoutMs = 5_000
   });
 }
 
+function emitAck<T>(socket: ClientSocket, eventName: string, payload: unknown, timeoutMs = 5_000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timed out waiting for ${eventName} ack.`));
+    }, timeoutMs);
+
+    socket.emit(eventName, payload, (result: unknown) => {
+      clearTimeout(timer);
+      resolve(result as T);
+    });
+  });
+}
+
 async function connectClient(baseUrl: string, token: string): Promise<ClientSocket> {
   const socket = createClient(baseUrl, { auth: { token } });
   await new Promise<void>((resolve, reject) => {
@@ -77,6 +215,27 @@ async function connectClient(baseUrl: string, token: string): Promise<ClientSock
     socket.once("connect_error", reject);
   });
   return socket;
+}
+
+function monsterHitbox(monster: FieldMonsterState): { x: number; y: number; width: number; height: number } {
+  return {
+    x: monster.x - 18,
+    y: monster.y - 18,
+    width: 36,
+    height: 36,
+  };
+}
+
+function rectanglesOverlap(
+  left: { x: number; y: number; width: number; height: number },
+  right: { x: number; y: number; width: number; height: number },
+): boolean {
+  return (
+    left.x < right.x + right.width
+    && left.x + left.width > right.x
+    && left.y < right.y + right.height
+    && left.y + left.height > right.y
+  );
 }
 
 async function waitForTick(duration = 120): Promise<void> {
@@ -311,6 +470,163 @@ describe("realtime presence", () => {
 
       expect(chat.text).toBe("복귀 완료");
       expect(leftUsername).toBeNull();
+    } finally {
+      sockets.forEach((socket) => socket.disconnect());
+      await new Promise<void>((resolve, reject) => context.httpServer.close((error) => (error ? reject(error) : resolve())));
+    }
+  }, 15_000);
+
+  it("shares field monsters and blocks duplicate claims on busy monsters", async () => {
+    const repository = new MemoryUserRepository();
+    const world = createFieldMonsterWorld();
+    const env = {
+      runtimeMode: "test" as const,
+      port: 0,
+      clientOrigin: "http://localhost:5173",
+      jwtSecret: "0123456789abcdef0123456789abcdef",
+      jwtExpiresIn: "7d",
+      passwordHashRounds: 10,
+      storageDriver: "memory" as const,
+    };
+
+    await repository.saveAccount({
+      username: "hero-a",
+      passwordHash: "plain",
+      player: createStarterPlayer("hero-a", world),
+    });
+    await repository.saveAccount({
+      username: "hero-b",
+      passwordHash: "plain",
+      player: createStarterPlayer("hero-b", world),
+    });
+
+    const context = await createAppContext({
+      env,
+      repository,
+      worldLoader: async () => world,
+    });
+
+    await new Promise<void>((resolve) => context.httpServer.listen(0, resolve));
+    const address = context.httpServer.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const sockets: ClientSocket[] = [];
+
+    try {
+      const socketA = await connectClient(baseUrl, signToken(env, "hero-a"));
+      const socketB = await connectClient(baseUrl, signToken(env, "hero-b"));
+      sockets.push(socketA, socketB);
+
+      const snapshotA = onceEvent<FieldMonsterState[]>(socketA, "field-monsters:snapshot");
+      socketA.emit("presence:join", { sceneId: "scene-field", x: 72, y: 72, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
+      const monsters = await snapshotA;
+      const normalMonsters = monsters.filter((monster) => !monster.isBoss);
+
+      expect(normalMonsters).toHaveLength(20);
+      expect(normalMonsters.every((monster) => monster.sceneId === "scene-field")).toBe(true);
+      const location = world.locations[world.startLocationKey]!;
+      const portal = location.scene.portals[0]!;
+      const npcBlock = { x: 816, y: 208, width: 48, height: 64 };
+      normalMonsters.forEach((monster) => {
+        expect(rectanglesOverlap(monsterHitbox(monster), portal)).toBe(false);
+        expect(rectanglesOverlap(monsterHitbox(monster), npcBlock)).toBe(false);
+      });
+
+      const snapshotB = onceEvent<FieldMonsterState[]>(socketB, "field-monsters:snapshot");
+      socketB.emit("presence:join", { sceneId: "scene-field", x: 90, y: 72, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
+      await snapshotB;
+
+      const target = normalMonsters[0]!;
+      const claimA = await emitAck<FieldMonsterClaimResult>(socketA, "field-monsters:claim", { monsterId: target.id });
+      if (!claimA.ok) {
+        throw new Error(`Expected first claim to succeed, got ${claimA.reason}.`);
+      }
+      expect(claimA.monster.id).toBe(target.id);
+
+      const claimB = await emitAck<FieldMonsterClaimResult>(socketB, "field-monsters:claim", { monsterId: target.id });
+      expect(claimB).toEqual({ ok: false, reason: "busy" });
+
+      const releaseUpdate = onceEvent<FieldMonsterState[]>(socketB, "field-monsters:update");
+      socketA.emit("field-monsters:release", { monsterId: target.id });
+      const afterRelease = await releaseUpdate;
+      expect(afterRelease.some((monster) => monster.id === target.id)).toBe(false);
+      expect(afterRelease.filter((monster) => !monster.isBoss)).toHaveLength(19);
+    } finally {
+      sockets.forEach((socket) => socket.disconnect());
+      await new Promise<void>((resolve, reject) => context.httpServer.close((error) => (error ? reject(error) : resolve())));
+    }
+  }, 15_000);
+
+  it("keeps one available boss even while another boss instance is in battle", async () => {
+    const repository = new MemoryUserRepository();
+    const world = createFieldMonsterWorld({ boss: true });
+    const env = {
+      runtimeMode: "test" as const,
+      port: 0,
+      clientOrigin: "http://localhost:5173",
+      jwtSecret: "0123456789abcdef0123456789abcdef",
+      jwtExpiresIn: "7d",
+      passwordHashRounds: 10,
+      storageDriver: "memory" as const,
+    };
+
+    await repository.saveAccount({
+      username: "hero-a",
+      passwordHash: "plain",
+      player: createStarterPlayer("hero-a", world),
+    });
+    await repository.saveAccount({
+      username: "hero-b",
+      passwordHash: "plain",
+      player: createStarterPlayer("hero-b", world),
+    });
+
+    const context = await createAppContext({
+      env,
+      repository,
+      worldLoader: async () => world,
+    });
+
+    await new Promise<void>((resolve) => context.httpServer.listen(0, resolve));
+    const address = context.httpServer.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const sockets: ClientSocket[] = [];
+
+    try {
+      const socketA = await connectClient(baseUrl, signToken(env, "hero-a"));
+      const socketB = await connectClient(baseUrl, signToken(env, "hero-b"));
+      sockets.push(socketA, socketB);
+
+      const snapshotA = onceEvent<FieldMonsterState[]>(socketA, "field-monsters:snapshot");
+      socketA.emit("presence:join", { sceneId: "scene-field", x: 72, y: 72, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
+      const initialBosses = await snapshotA;
+      expect(initialBosses.filter((monster) => monster.isBoss)).toHaveLength(1);
+
+      const snapshotB = onceEvent<FieldMonsterState[]>(socketB, "field-monsters:snapshot");
+      socketB.emit("presence:join", { sceneId: "scene-field", x: 90, y: 72, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
+      await snapshotB;
+
+      const firstBoss = initialBosses.find((monster) => monster.isBoss)!;
+      const bossUpdate = onceEvent<FieldMonsterState[]>(socketB, "field-monsters:update");
+      const claimA = await emitAck<FieldMonsterClaimResult>(socketA, "field-monsters:claim", { monsterId: firstBoss.id });
+      if (!claimA.ok) {
+        throw new Error(`Expected boss claim to succeed, got ${claimA.reason}.`);
+      }
+
+      const bossesAfterClaim = await bossUpdate;
+      const availableBoss = bossesAfterClaim.find((monster) => monster.isBoss && !monster.inBattleBy);
+      expect(bossesAfterClaim.filter((monster) => monster.isBoss)).toHaveLength(2);
+      expect(availableBoss).toBeTruthy();
+
+      const secondClaimUpdate = onceEvent<FieldMonsterState[]>(socketA, "field-monsters:update");
+      const claimB = await emitAck<FieldMonsterClaimResult>(socketB, "field-monsters:claim", { monsterId: availableBoss!.id });
+      expect(claimB.ok).toBe(true);
+      await secondClaimUpdate;
+
+      const releaseUpdate = onceEvent<FieldMonsterState[]>(socketB, "field-monsters:update");
+      socketA.emit("field-monsters:release", { monsterId: firstBoss.id });
+      const bossesAfterRelease = await releaseUpdate;
+      expect(bossesAfterRelease.some((monster) => monster.id === firstBoss.id)).toBe(false);
+      expect(bossesAfterRelease.some((monster) => monster.isBoss && !monster.inBattleBy)).toBe(true);
     } finally {
       sockets.forEach((socket) => socket.disconnect());
       await new Promise<void>((resolve, reject) => context.httpServer.close((error) => (error ? reject(error) : resolve())));

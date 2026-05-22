@@ -2,12 +2,14 @@ import type { Server } from "socket.io";
 import {
   isPlayerAvatarId,
   type ChatMessage,
+  type FieldMonsterClaimResult,
   type Facing,
   type PresenceState,
   type WorldContent,
 } from "@rpg/game-core";
 import type { ServerEnv } from "../config/env";
 import { verifyToken } from "../http/auth";
+import { FieldMonsterManager } from "./fieldMonsters";
 
 type AuthenticatedSocketData = {
   username: string;
@@ -32,8 +34,11 @@ type PresencePayload = {
   avatarId: string;
 };
 
+type FieldMonsterClaimAck = (result: FieldMonsterClaimResult) => void;
+
 const FACING_VALUES = new Set<Facing>(["up", "down", "left", "right"]);
 const MAX_CHAT_LENGTH = 200;
+const FIELD_MONSTER_REFILL_INTERVAL_MS = 10_000;
 
 function colorFromUsername(username: string): string {
   const palette = ["#f25f5c", "#247ba0", "#70c1b3", "#ffe066", "#50514f", "#f79d65"];
@@ -130,9 +135,16 @@ function readChatText(payload: unknown): string | null {
   return text;
 }
 
+function readFieldMonsterId(payload: unknown): string | null {
+  const record = asRecord(payload);
+  const monsterId = typeof record?.monsterId === "string" ? record.monsterId.trim() : "";
+  return monsterId.length > 0 ? monsterId : null;
+}
+
 export function configureRealtime(io: Server, env: ServerEnv, world: WorldContent): void {
   const presenceByScene = new Map<string, Map<string, PresenceEntry>>();
   const sceneBounds = buildSceneBounds(world);
+  const fieldMonsters = new FieldMonsterManager(world);
 
   const serializeRoom = (room: Map<string, PresenceEntry>): PresenceState[] =>
     Array.from(room.values()).map((entry) => ({
@@ -145,6 +157,19 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
       avatarId: entry.avatarId,
       updatedAt: entry.updatedAt,
     }));
+
+  const broadcastFieldMonsterScenes = (sceneIds: string[]) => {
+    sceneIds.forEach((sceneId) => {
+      io.to(sceneId).emit("field-monsters:update", fieldMonsters.getSceneMonsters(sceneId));
+    });
+  };
+
+  const fieldMonsterRefillTimer = setInterval(() => {
+    broadcastFieldMonsterScenes(fieldMonsters.refillAll());
+  }, FIELD_MONSTER_REFILL_INTERVAL_MS);
+  if (typeof fieldMonsterRefillTimer === "object" && "unref" in fieldMonsterRefillTimer) {
+    fieldMonsterRefillTimer.unref();
+  }
 
   io.use((socket, next) => {
     const token = String(socket.handshake.auth.token ?? "");
@@ -212,6 +237,7 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
       presenceByScene.set(sceneId, room);
 
       socket.emit("presence:snapshot", serializeRoom(room));
+      socket.emit("field-monsters:snapshot", fieldMonsters.getSceneMonsters(sceneId));
       socket.to(sceneId).emit(hadExisting ? "presence:update" : "presence:joined", state);
     };
 
@@ -287,7 +313,33 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
       io.to(data.sceneId).emit("chat:message", message);
     });
 
+    socket.on("field-monsters:claim", (payload: unknown, ack?: FieldMonsterClaimAck) => {
+      if (!data.sceneId) {
+        ack?.({ ok: false, reason: "invalid_scene" });
+        return;
+      }
+
+      const monsterId = readFieldMonsterId(payload);
+      if (!monsterId) {
+        ack?.({ ok: false, reason: "not_found" });
+        return;
+      }
+
+      const { result, changedSceneIds } = fieldMonsters.claimMonster(data.sceneId, monsterId, data.username);
+      ack?.(result);
+      broadcastFieldMonsterScenes(changedSceneIds);
+    });
+
+    socket.on("field-monsters:release", (payload: unknown) => {
+      const monsterId = readFieldMonsterId(payload);
+      if (!monsterId) {
+        return;
+      }
+      broadcastFieldMonsterScenes(fieldMonsters.completeBattle(monsterId, data.username));
+    });
+
     socket.on("disconnect", () => {
+      broadcastFieldMonsterScenes(fieldMonsters.releaseBusyMonstersForUser(data.username));
       leaveCurrentScene();
     });
   });
