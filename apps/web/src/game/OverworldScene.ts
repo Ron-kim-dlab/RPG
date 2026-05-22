@@ -68,6 +68,8 @@ type FieldMonsterSprite = {
   sprite: Phaser.GameObjects.Sprite;
   label: Phaser.GameObjects.Text;
   texturePath: string;
+  zoneId?: string;
+  wanderTween?: Phaser.Tweens.Tween;
 };
 
 type DeathGraveSprite = {
@@ -77,6 +79,7 @@ type DeathGraveSprite = {
 
 const REMOTE_INTERPOLATION_SPEED = 12;
 const REMOTE_SNAP_DISTANCE = 240;
+const LOCAL_PLAYER_SYNC_SNAP_DISTANCE = 96;
 const MONSTER_CONTACT_DISTANCE = 42;
 const BOSS_CONTACT_DISTANCE = 58;
 const GRAVE_INTERACTION_DISTANCE = 58;
@@ -155,16 +158,34 @@ export class OverworldScene extends Phaser.Scene {
     fieldMonsters: FieldMonsterState[],
     deathGraves: DeathGraveState[],
   ): void {
-    this.playerState = player;
+    const previousSceneId = this.sceneDefinition?.sceneId;
     const location = this.world?.locations[player.locationKey];
-    if (location && location.scene.sceneId !== this.sceneDefinition?.sceneId) {
+    if (location && location.scene.sceneId !== previousSceneId) {
+      this.playerState = player;
       this.buildLocation();
     }
     this.fieldMonsters = fieldMonsters.filter((monster) => monster.sceneId === this.sceneDefinition?.sceneId);
     this.deathGraves = deathGraves.filter((grave) => grave.sceneId === this.sceneDefinition?.sceneId);
 
     if (this.playerSprite) {
-      this.playerSprite.setPosition(player.position.x, player.position.y);
+      const syncDistance = Phaser.Math.Distance.Between(
+        this.playerSprite.x,
+        this.playerSprite.y,
+        player.position.x,
+        player.position.y,
+      );
+      if (syncDistance > LOCAL_PLAYER_SYNC_SNAP_DISTANCE || location?.scene.sceneId !== previousSceneId) {
+        this.playerSprite.setPosition(player.position.x, player.position.y);
+      }
+      this.playerState = {
+        ...player,
+        position: {
+          x: this.playerSprite.x,
+          y: this.playerSprite.y,
+        },
+      };
+    } else {
+      this.playerState = player;
     }
     this.syncFieldMonsterSprites(this.fieldMonsters);
     this.syncDeathGraveSprites(this.deathGraves);
@@ -358,12 +379,19 @@ export class OverworldScene extends Phaser.Scene {
       activeIds.add(monster.id);
       const existing = this.fieldMonsterSprites.get(monster.id);
       if (existing) {
-        existing.container.setPosition(monster.x, monster.y);
         existing.container.setAlpha(monster.inBattleBy ? 0.42 : 1);
         existing.label.setText(monster.inBattleBy ? `${monster.enemyName} (전투 중)` : monster.enemyName);
         if (existing.texturePath !== monster.texturePath) {
           existing.sprite.setTexture(monster.texturePath);
           existing.texturePath = monster.texturePath;
+        }
+        if (monster.inBattleBy) {
+          existing.wanderTween?.stop();
+          existing.wanderTween = undefined;
+        } else if (existing.zoneId !== monster.zoneId || !existing.wanderTween) {
+          existing.wanderTween?.stop();
+          existing.zoneId = monster.zoneId;
+          this.startMonsterWander(monster, existing);
         }
         return;
       }
@@ -392,15 +420,56 @@ export class OverworldScene extends Phaser.Scene {
         sprite,
         label,
         texturePath: monster.texturePath,
+        zoneId: monster.zoneId,
       });
+      this.startMonsterWander(monster, this.fieldMonsterSprites.get(monster.id)!);
     });
 
     Array.from(this.fieldMonsterSprites.entries()).forEach(([monsterId, rendered]) => {
       if (!activeIds.has(monsterId)) {
+        rendered.wanderTween?.stop();
         rendered.container.destroy();
         this.fieldMonsterSprites.delete(monsterId);
       }
     });
+  }
+
+  private startMonsterWander(monster: FieldMonsterState, rendered: FieldMonsterSprite): void {
+    if (monster.isBoss || monster.inBattleBy || !monster.zoneId) {
+      return;
+    }
+
+    const zone = this.sceneDefinition?.encounterZones.find((candidate) => candidate.id === monster.zoneId);
+    if (!zone) {
+      return;
+    }
+
+    const target = this.pickPointInZone(zone, 24);
+    rendered.wanderTween = this.tweens.add({
+      targets: rendered.container,
+      x: target.x,
+      y: target.y,
+      duration: Phaser.Math.Between(2600, 5200),
+      ease: "sine.inOut",
+      onComplete: () => {
+        rendered.wanderTween = undefined;
+        const latestMonster = this.fieldMonsters.find((candidate) => candidate.id === monster.id);
+        if (latestMonster) {
+          this.startMonsterWander(latestMonster, rendered);
+        }
+      },
+    });
+  }
+
+  private pickPointInZone(zone: EncounterZone, padding: number): { x: number; y: number } {
+    const minX = zone.x + padding;
+    const maxX = zone.x + zone.width - padding;
+    const minY = zone.y + padding;
+    const maxY = zone.y + zone.height - padding;
+    return {
+      x: Phaser.Math.Between(Math.round(Math.min(minX, maxX)), Math.round(Math.max(minX, maxX))),
+      y: Phaser.Math.Between(Math.round(Math.min(minY, maxY)), Math.round(Math.max(minY, maxY))),
+    };
   }
 
   private syncDeathGraveSprites(graves: DeathGraveState[]): void {
@@ -484,7 +553,10 @@ export class OverworldScene extends Phaser.Scene {
     this.lastFieldMonsterContactId = "";
     this.remoteSprites.forEach((remote) => remote.container.destroy());
     this.remoteSprites.clear();
-    this.fieldMonsterSprites.forEach((monster) => monster.container.destroy());
+    this.fieldMonsterSprites.forEach((monster) => {
+      monster.wanderTween?.stop();
+      monster.container.destroy();
+    });
     this.fieldMonsterSprites.clear();
     this.deathGraveSprites.forEach((grave) => grave.container.destroy());
     this.deathGraveSprites.clear();
@@ -573,34 +645,15 @@ export class OverworldScene extends Phaser.Scene {
           location.scene.assets.encounterTexturePath,
         )
         .setDisplaySize(zoneDisplayWidth, zoneDisplayHeight)
-        .setAlpha(0.3)
+        .setAlpha(0.22)
         .setDepth(2);
-      const encounterGlow = this.add
+      this.add
         .image(zoneCenterX, zoneCenterY, location.scene.assets.encounterTexturePath)
-        .setDisplaySize(zoneDisplayWidth * 0.86, zoneDisplayHeight * 0.82)
-        .setAlpha(0.12)
+        .setDisplaySize(zoneDisplayWidth * 0.72, zoneDisplayHeight * 0.68)
+        .setAlpha(0.08)
         .setDepth(3)
         .setBlendMode(Phaser.BlendModes.ADD);
-      this.tweens.add({
-        targets: encounterMarker,
-        alpha: 0.42,
-        scaleX: 1.01,
-        scaleY: 1.018,
-        duration: 1500,
-        yoyo: true,
-        repeat: -1,
-        ease: "sine.inOut",
-      });
-      this.tweens.add({
-        targets: encounterGlow,
-        alpha: 0.24,
-        scaleX: 1.045,
-        scaleY: 1.06,
-        duration: 1180,
-        yoyo: true,
-        repeat: -1,
-        ease: "sine.inOut",
-      });
+      encounterMarker.setTint(0xc6f6d5);
       this.encounterZones.push({
         zone: new Phaser.Geom.Rectangle(encounterZone.x, encounterZone.y, encounterZone.width, encounterZone.height),
         data: encounterZone,
@@ -691,7 +744,10 @@ export class OverworldScene extends Phaser.Scene {
         return false;
       }
       const contactDistance = monster.isBoss ? BOSS_CONTACT_DISTANCE : MONSTER_CONTACT_DISTANCE;
-      return Phaser.Math.Distance.Between(monster.x, monster.y, x, y) <= contactDistance;
+      const rendered = this.fieldMonsterSprites.get(monster.id);
+      const monsterX = rendered?.container.x ?? monster.x;
+      const monsterY = rendered?.container.y ?? monster.y;
+      return Phaser.Math.Distance.Between(monsterX, monsterY, x, y) <= contactDistance;
     }) ?? null;
   }
 

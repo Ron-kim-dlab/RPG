@@ -7,6 +7,7 @@ import type {
 } from "@rpg/game-core";
 
 const MAX_NORMAL_MONSTERS_PER_SCENE = 20;
+const MAX_NORMAL_MONSTERS_PER_ZONE = 5;
 const MONSTER_HITBOX_SIZE = 36;
 const MONSTER_SPACING = 44;
 const BLOCKING_BUFFER = 28;
@@ -21,6 +22,7 @@ type Rectangle = {
 type SceneSpawnConfig = {
   scene: SceneDefinition;
   normalEnemyIds: string[];
+  normalZones: EncounterZone[];
   bossEnemyId?: string;
 };
 
@@ -160,16 +162,15 @@ export class FieldMonsterManager {
   private buildSceneConfigs(): void {
     Object.values(this.world.locations).forEach((location) => {
       const scene = location.scene;
-      if (scene.encounterZones.length === 0) {
-        return;
-      }
-
       const encounterEnemyIds = Array.from(new Set(scene.encounterZones.flatMap((zone) => zone.enemyIds)));
       const normalEnemyIds = encounterEnemyIds.filter((enemyId) => {
         const enemy = this.world.enemies[enemyId];
         return Boolean(enemy && !enemy.isBoss);
       });
-      const bossEnemyId = encounterEnemyIds.find((enemyId) => Boolean(this.world.enemies[enemyId]?.isBoss));
+      const normalZones = scene.encounterZones.filter((zone) =>
+        zone.enemyIds.some((enemyId) => normalEnemyIds.includes(enemyId)),
+      );
+      const bossEnemyId = this.findBossEnemyId(location.bossName, encounterEnemyIds);
       if (normalEnemyIds.length === 0 && !bossEnemyId) {
         return;
       }
@@ -177,10 +178,22 @@ export class FieldMonsterManager {
       this.sceneConfigs.set(scene.sceneId, {
         scene,
         normalEnemyIds,
+        normalZones,
         bossEnemyId,
       });
       this.monstersByScene.set(scene.sceneId, []);
     });
+  }
+
+  private findBossEnemyId(bossName: string | undefined, encounterEnemyIds: string[]): string | undefined {
+    const encounterBossId = encounterEnemyIds.find((enemyId) => Boolean(this.world.enemies[enemyId]?.isBoss));
+    if (encounterBossId) {
+      return encounterBossId;
+    }
+    if (!bossName) {
+      return undefined;
+    }
+    return Object.values(this.world.enemies).find((enemy) => enemy.isBoss && enemy.name === bossName)?.id;
   }
 
   private refillScene(sceneId: string, options: RefillOptions): boolean {
@@ -192,13 +205,18 @@ export class FieldMonsterManager {
 
     let changed = false;
     if (options.fillNormal) {
-      while (monsters.filter((monster) => !monster.isBoss).length < MAX_NORMAL_MONSTERS_PER_SCENE) {
-        const spawned = this.spawnNormalMonster(config, monsters);
-        if (!spawned) {
-          break;
+      for (const zone of config.normalZones) {
+        while (
+          monsters.filter((monster) => !monster.isBoss && monster.zoneId === zone.id).length < MAX_NORMAL_MONSTERS_PER_ZONE
+          && monsters.filter((monster) => !monster.isBoss).length < MAX_NORMAL_MONSTERS_PER_SCENE
+        ) {
+          const spawned = this.spawnNormalMonster(config, zone, monsters);
+          if (!spawned) {
+            break;
+          }
+          monsters.push(spawned);
+          changed = true;
         }
-        monsters.push(spawned);
-        changed = true;
       }
     }
 
@@ -209,13 +227,18 @@ export class FieldMonsterManager {
     return changed;
   }
 
-  private spawnNormalMonster(config: SceneSpawnConfig, existingMonsters: FieldMonsterState[]): FieldMonsterState | null {
+  private spawnNormalMonster(
+    config: SceneSpawnConfig,
+    zone: EncounterZone,
+    existingMonsters: FieldMonsterState[],
+  ): FieldMonsterState | null {
     if (config.normalEnemyIds.length === 0) {
       return null;
     }
 
-    const enemyId = this.pickWeightedEnemy(config.normalEnemyIds);
-    return this.createMonster(config, enemyId, false, existingMonsters);
+    const zoneEnemyIds = zone.enemyIds.filter((enemyId) => config.normalEnemyIds.includes(enemyId));
+    const enemyId = this.pickWeightedEnemy(zoneEnemyIds.length > 0 ? zoneEnemyIds : config.normalEnemyIds);
+    return this.createMonster(config, enemyId, false, existingMonsters, [zone], zone.id);
   }
 
   private ensureAvailableBoss(config: SceneSpawnConfig, existingMonsters: FieldMonsterState[]): boolean {
@@ -228,7 +251,13 @@ export class FieldMonsterManager {
       return false;
     }
 
-    const boss = this.createMonster(config, config.bossEnemyId, true, existingMonsters);
+    const boss = this.createMonster(
+      config,
+      config.bossEnemyId,
+      true,
+      existingMonsters,
+      this.getZonesForEnemy(config.scene, config.bossEnemyId),
+    );
     if (!boss) {
       return false;
     }
@@ -241,14 +270,15 @@ export class FieldMonsterManager {
     enemyId: string,
     isBoss: boolean,
     existingMonsters: FieldMonsterState[],
+    zones: EncounterZone[],
+    zoneId?: string,
   ): FieldMonsterState | null {
     const enemy = this.world.enemies[enemyId];
     if (!enemy) {
       return null;
     }
 
-    const zones = this.getZonesForEnemy(config.scene, enemyId);
-    const position = this.pickSpawnPosition(config.scene, zones, existingMonsters);
+    const position = this.pickSpawnPosition(config.scene, this.getSpawnZones(config.scene, zones, enemyId), existingMonsters);
     if (!position) {
       return null;
     }
@@ -261,6 +291,7 @@ export class FieldMonsterManager {
       texturePath: enemy.texturePath,
       x: Math.round(position.x),
       y: Math.round(position.y),
+      zoneId,
       isBoss,
       spawnedAt: new Date().toISOString(),
     };
@@ -286,6 +317,24 @@ export class FieldMonsterManager {
   private getZonesForEnemy(scene: SceneDefinition, enemyId: string): EncounterZone[] {
     const matchingZones = scene.encounterZones.filter((zone) => zone.enemyIds.includes(enemyId));
     return matchingZones.length > 0 ? matchingZones : scene.encounterZones;
+  }
+
+  private getSpawnZones(scene: SceneDefinition, zones: EncounterZone[], enemyId: string): EncounterZone[] {
+    if (zones.length > 0) {
+      return zones;
+    }
+
+    const margin = Math.max(72, MONSTER_HITBOX_SIZE + BLOCKING_BUFFER);
+    return [
+      {
+        id: `${scene.sceneId}-free-spawn`,
+        x: margin,
+        y: margin,
+        width: Math.max(MONSTER_HITBOX_SIZE, scene.width - margin * 2),
+        height: Math.max(MONSTER_HITBOX_SIZE, scene.height - margin * 2),
+        enemyIds: [enemyId],
+      },
+    ];
   }
 
   private pickSpawnPosition(

@@ -121,6 +121,44 @@ describe("legacy content conversion", () => {
     expect(convertedEnemy?.spawnRate).toBe(7);
   });
 
+  it("splits monster fields into four visible encounter zones", () => {
+    const world = buildWorldContentFromLegacy({
+      map,
+      monsters: monster,
+      bosses: boss,
+      equipment: equipment as never,
+      skills: skill as never,
+      tactics: tactics as never,
+    });
+
+    const monsterLocations = Object.values(world.locations).filter((location) => (
+      !location.bossName && (world.enemiesByLocation[location.key]?.length ?? 0) > 0
+    ));
+
+    expect(monsterLocations.length).toBeGreaterThan(0);
+    monsterLocations.forEach((location) => {
+      expect(location.scene.encounterZones).toHaveLength(4);
+    });
+  });
+
+  it("does not add normal monster zones to boss-only fields", () => {
+    const world = buildWorldContentFromLegacy({
+      map,
+      monsters: monster,
+      bosses: boss,
+      equipment: equipment as never,
+      skills: skill as never,
+      tactics: tactics as never,
+    });
+
+    const bossLocations = Object.values(world.locations).filter((location) => Boolean(location.bossName));
+
+    expect(bossLocations.length).toBeGreaterThan(0);
+    bossLocations.forEach((location) => {
+      expect(location.scene.encounterZones).toEqual([]);
+    });
+  });
+
   it("creates non-overlapping portal slots when a layout needs more than four exits", () => {
     const layout = createSceneLayout("plaza");
     const slots = createScenePortalSlots(layout, 6);

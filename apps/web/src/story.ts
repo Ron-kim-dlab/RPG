@@ -1,5 +1,16 @@
-import { ensureStoryState, type LocationNode, type PlayerSave } from "@rpg/game-core";
+import { ensureStoryState, toLocationKey, toStableId, type LocationNode, type PlayerSave } from "@rpg/game-core";
 import type { DialogueState } from "./state/store";
+
+const BLACKSMITH_REWARD_LOCATION_KEY = toLocationKey("시작의 마을", "무기 상점");
+const BLACKSMITH_REWARD_EQUIPMENT_ID = toStableId("equipment", "마을의 검");
+const BLACKSMITH_REWARD_MESSAGE = "대장장이가 '마을의 검'을 지급하였습니다.";
+
+type DialogueAdvanceResult = {
+  player: PlayerSave;
+  dialogue: DialogueState | null;
+  completedLocationStory: boolean;
+  rewardMessages: string[];
+};
 
 export function hasUnreadLocationStory(
   player: PlayerSave | null,
@@ -56,7 +67,7 @@ export function createLocationStoryDialogue(
 export function advanceDialogueProgress(
   player: PlayerSave,
   dialogue: DialogueState,
-): { player: PlayerSave; dialogue: DialogueState | null; completedLocationStory: boolean } {
+): DialogueAdvanceResult {
   const lastIndex = dialogue.lines.length - 1;
   if (dialogue.index < lastIndex) {
     return {
@@ -66,29 +77,57 @@ export function advanceDialogueProgress(
         index: dialogue.index + 1,
       },
       completedLocationStory: false,
+      rewardMessages: [],
     };
   }
 
   if (dialogue.kind !== "location") {
+    const rewarded = applyDialogueCompletionRewards(player, dialogue);
     return {
-      player,
+      player: rewarded.player,
       dialogue: null,
       completedLocationStory: false,
+      rewardMessages: rewarded.messages,
     };
+  }
+
+  const completedPlayer: PlayerSave = {
+    ...player,
+    storyState: {
+      ...player.storyState,
+      [dialogue.locationKey]: {
+        completed: true,
+        currentIndex: Math.max(0, lastIndex),
+      },
+    },
+  };
+  const rewarded = applyDialogueCompletionRewards(completedPlayer, dialogue);
+
+  return {
+    player: rewarded.player,
+    dialogue: null,
+    completedLocationStory: true,
+    rewardMessages: rewarded.messages,
+  };
+}
+
+function applyDialogueCompletionRewards(
+  player: PlayerSave,
+  dialogue: DialogueState,
+): { player: PlayerSave; messages: string[] } {
+  if (dialogue.locationKey !== BLACKSMITH_REWARD_LOCATION_KEY) {
+    return { player, messages: [] };
+  }
+
+  if (player.ownedEquipmentIds.includes(BLACKSMITH_REWARD_EQUIPMENT_ID)) {
+    return { player, messages: [] };
   }
 
   return {
     player: {
       ...player,
-      storyState: {
-        ...player.storyState,
-        [dialogue.locationKey]: {
-          completed: true,
-          currentIndex: Math.max(0, lastIndex),
-        },
-      },
+      ownedEquipmentIds: [...player.ownedEquipmentIds, BLACKSMITH_REWARD_EQUIPMENT_ID],
     },
-    dialogue: null,
-    completedLocationStory: true,
+    messages: [BLACKSMITH_REWARD_MESSAGE],
   };
 }

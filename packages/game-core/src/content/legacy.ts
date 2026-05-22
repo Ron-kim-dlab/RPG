@@ -1,5 +1,6 @@
 import type {
   EffectDefinition,
+  EncounterZone,
   EquipmentDefinition,
   LegacyBossData,
   LegacyEquipmentData,
@@ -322,6 +323,43 @@ function areaColor(mainLocation: string): string {
   return colors[mainLocation] ?? "#34506b";
 }
 
+function buildEncounterZones(
+  sceneId: string,
+  layout: { width: number; height: number; encounterZone: { x: number; y: number; width: number; height: number } },
+  enemyIds: string[],
+): EncounterZone[] {
+  if (enemyIds.length === 0) {
+    return [];
+  }
+
+  const base = layout.encounterZone;
+  const zoneWidth = Math.min(190, Math.max(128, Math.round(base.width * 0.46)));
+  const zoneHeight = Math.min(118, Math.max(88, Math.round(base.height * 0.5)));
+  const centerX = base.x + base.width / 2;
+  const centerY = base.y + base.height / 2;
+  const offsetX = Math.max(zoneWidth / 2 + 12, Math.round(base.width * 0.26));
+  const offsetY = Math.max(zoneHeight / 2 + 10, Math.round(base.height * 0.28));
+  const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
+  const minX = zoneWidth / 2 + 52;
+  const maxX = layout.width - zoneWidth / 2 - 52;
+  const minY = zoneHeight / 2 + 72;
+  const maxY = layout.height - zoneHeight / 2 - 72;
+
+  return [
+    { x: centerX - offsetX, y: centerY - offsetY },
+    { x: centerX + offsetX, y: centerY - offsetY },
+    { x: centerX - offsetX, y: centerY + offsetY },
+    { x: centerX + offsetX, y: centerY + offsetY },
+  ].map((center, index) => ({
+    id: toStableId("encounter", `${sceneId}-${index + 1}`),
+    x: Math.round(clamp(center.x, minX, maxX) - zoneWidth / 2),
+    y: Math.round(clamp(center.y, minY, maxY) - zoneHeight / 2),
+    width: zoneWidth,
+    height: zoneHeight,
+    enemyIds,
+  }));
+}
+
 function buildScene(
   mainLocation: string,
   subLocation: string,
@@ -369,18 +407,7 @@ function buildScene(
           },
         ]
       : [],
-    encounterZones: enemyIds.length > 0
-      ? [
-          {
-            id: toStableId("encounter", sceneId),
-            x: layout.encounterZone.x,
-            y: layout.encounterZone.y,
-            width: layout.encounterZone.width,
-            height: layout.encounterZone.height,
-            enemyIds,
-          },
-        ]
-      : [],
+    encounterZones: hasBoss ? [] : buildEncounterZones(sceneId, layout, enemyIds),
     collisionZones: layout.collisionZones.map((zone) => ({
       id: toStableId("collision", `${sceneId}-${zone.id}`),
       x: zone.x,

@@ -511,7 +511,8 @@ export class AppController {
     }
 
     this.store.pushLog(`${state.dialogue.title} 대화 종료`);
-    if (result.completedLocationStory) {
+    result.rewardMessages.forEach((message) => this.store.pushLog(message));
+    if (result.completedLocationStory || result.rewardMessages.length > 0) {
       await this.savePlayer();
     }
   }
