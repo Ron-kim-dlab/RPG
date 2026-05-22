@@ -138,6 +138,13 @@ describe("legacy content conversion", () => {
     expect(monsterLocations.length).toBeGreaterThan(0);
     monsterLocations.forEach((location) => {
       expect(location.scene.encounterZones).toHaveLength(4);
+      location.scene.encounterZones.forEach((zone, index) => {
+        expect(zone.width).toBeGreaterThanOrEqual(168);
+        expect(zone.height).toBeGreaterThanOrEqual(108);
+        location.scene.encounterZones.slice(index + 1).forEach((otherZone) => {
+          expect(rectanglesOverlap(zone, otherZone)).toBe(false);
+        });
+      });
     });
   });
 

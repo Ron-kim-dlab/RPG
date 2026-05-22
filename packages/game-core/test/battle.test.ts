@@ -237,7 +237,7 @@ describe("battle engine", () => {
     expect(result.logs.some((entry) => entry.includes("슬라임에게 3 피해"))).toBe(true);
   });
 
-  it("places starter and revived players on a safe scene spawn", () => {
+  it("places starter and revived players on a safe scene spawn without rejecting obstacle positions", () => {
     const starter = createStarterPlayer("tester", overworldWorld);
     expect(starter.position).toEqual({ x: 512, y: 636 });
 
@@ -246,7 +246,7 @@ describe("battle engine", () => {
       version: 2,
       position: { x: 512, y: 384 },
     }, "tester", overworldWorld);
-    expect(normalizedExisting.position).toEqual({ x: 512, y: 636 });
+    expect(normalizedExisting.position).toEqual({ x: 512, y: 384 });
 
     const defeatedPlayer = {
       ...starter,

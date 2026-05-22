@@ -80,6 +80,7 @@ type DeathGraveSprite = {
 const REMOTE_INTERPOLATION_SPEED = 12;
 const REMOTE_SNAP_DISTANCE = 240;
 const LOCAL_PLAYER_SYNC_SNAP_DISTANCE = 96;
+const OBSTACLE_SPEED_MULTIPLIER = 0.35;
 const MONSTER_CONTACT_DISTANCE = 42;
 const BOSS_CONTACT_DISTANCE = 58;
 const GRAVE_INTERACTION_DISTANCE = 58;
@@ -239,11 +240,13 @@ export class OverworldScene extends Phaser.Scene {
       }
     }
 
-    const distance = speed * (delta / 1000);
-    const desiredX = Phaser.Math.Clamp(this.playerSprite.x + velocityX * distance, 36, this.sceneDefinition.width - 36);
-    const desiredY = Phaser.Math.Clamp(this.playerSprite.y + velocityY * distance, 36, this.sceneDefinition.height - 36);
-    const nextX = this.isBlocked(desiredX, this.playerSprite.y) ? this.playerSprite.x : desiredX;
-    const nextY = this.isBlocked(nextX, desiredY) ? this.playerSprite.y : desiredY;
+    const baseDistance = speed * (delta / 1000);
+    const intendedX = Phaser.Math.Clamp(this.playerSprite.x + velocityX * baseDistance, 36, this.sceneDefinition.width - 36);
+    const intendedY = Phaser.Math.Clamp(this.playerSprite.y + velocityY * baseDistance, 36, this.sceneDefinition.height - 36);
+    const speedMultiplier = this.getObstacleSpeedMultiplier(this.playerSprite.x, this.playerSprite.y, intendedX, intendedY);
+    const distance = baseDistance * speedMultiplier;
+    const nextX = Phaser.Math.Clamp(this.playerSprite.x + velocityX * distance, 36, this.sceneDefinition.width - 36);
+    const nextY = Phaser.Math.Clamp(this.playerSprite.y + velocityY * distance, 36, this.sceneDefinition.height - 36);
 
     this.playerSprite.setPosition(nextX, nextY);
     this.playerState = {
@@ -636,8 +639,8 @@ export class OverworldScene extends Phaser.Scene {
     location.scene.encounterZones.forEach((encounterZone) => {
       const zoneCenterX = encounterZone.x + encounterZone.width / 2;
       const zoneCenterY = encounterZone.y + encounterZone.height / 2;
-      const zoneDisplayWidth = Math.max(96, Math.min(encounterZone.width * 0.58, 260));
-      const zoneDisplayHeight = Math.max(58, Math.min(encounterZone.height * 0.72, zoneDisplayWidth * 0.6));
+      const zoneDisplayWidth = Math.max(128, Math.min(encounterZone.width * 0.9, 280));
+      const zoneDisplayHeight = Math.max(82, Math.min(encounterZone.height * 0.9, zoneDisplayWidth * 0.64));
       const encounterMarker = this.add
         .image(
           zoneCenterX,
@@ -645,12 +648,12 @@ export class OverworldScene extends Phaser.Scene {
           location.scene.assets.encounterTexturePath,
         )
         .setDisplaySize(zoneDisplayWidth, zoneDisplayHeight)
-        .setAlpha(0.22)
+        .setAlpha(0.36)
         .setDepth(2);
       this.add
         .image(zoneCenterX, zoneCenterY, location.scene.assets.encounterTexturePath)
-        .setDisplaySize(zoneDisplayWidth * 0.72, zoneDisplayHeight * 0.68)
-        .setAlpha(0.08)
+        .setDisplaySize(zoneDisplayWidth * 0.76, zoneDisplayHeight * 0.72)
+        .setAlpha(0.14)
         .setDepth(3)
         .setBlendMode(Phaser.BlendModes.ADD);
       encounterMarker.setTint(0xc6f6d5);
@@ -1002,10 +1005,16 @@ export class OverworldScene extends Phaser.Scene {
       ?? scene.assets.propsTexturePath;
   }
 
-  private isBlocked(x: number, y: number): boolean {
+  private getObstacleSpeedMultiplier(currentX: number, currentY: number, intendedX: number, intendedY: number): number {
     const size = 20;
-    const hitbox = new Phaser.Geom.Rectangle(x - size / 2, y - size / 2, size, size);
-    return this.collisionZones.some((zone) => Phaser.Geom.Intersects.RectangleToRectangle(hitbox, zone));
+    const currentHitbox = new Phaser.Geom.Rectangle(currentX - size / 2, currentY - size / 2, size, size);
+    const intendedHitbox = new Phaser.Geom.Rectangle(intendedX - size / 2, intendedY - size / 2, size, size);
+    return this.collisionZones.some((zone) => (
+      Phaser.Geom.Intersects.RectangleToRectangle(currentHitbox, zone)
+      || Phaser.Geom.Intersects.RectangleToRectangle(intendedHitbox, zone)
+    ))
+      ? OBSTACLE_SPEED_MULTIPLIER
+      : 1;
   }
 
   private colorForPath(kind?: string): number {

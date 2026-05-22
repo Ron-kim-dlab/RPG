@@ -333,12 +333,12 @@ function buildEncounterZones(
   }
 
   const base = layout.encounterZone;
-  const zoneWidth = Math.min(190, Math.max(128, Math.round(base.width * 0.46)));
-  const zoneHeight = Math.min(118, Math.max(88, Math.round(base.height * 0.5)));
+  const zoneWidth = Math.min(240, Math.max(168, Math.round(base.width * 0.6)));
+  const zoneHeight = Math.min(148, Math.max(108, Math.round(base.height * 0.68)));
   const centerX = base.x + base.width / 2;
   const centerY = base.y + base.height / 2;
-  const offsetX = Math.max(zoneWidth / 2 + 12, Math.round(base.width * 0.26));
-  const offsetY = Math.max(zoneHeight / 2 + 10, Math.round(base.height * 0.28));
+  const offsetX = Math.max(zoneWidth / 2 + 28, Math.round(base.width * 0.32));
+  const offsetY = Math.max(zoneHeight / 2 + 24, Math.round(base.height * 0.36));
   const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
   const minX = zoneWidth / 2 + 52;
   const maxX = layout.width - zoneWidth / 2 - 52;

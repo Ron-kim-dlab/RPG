@@ -99,12 +99,15 @@ button {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(520px, 1fr) minmax(280px, 360px);
   gap: 12px;
+  height: calc(100svh - 112px);
   min-height: calc(100vh - 112px);
+  max-height: calc(100svh - 112px);
 }
 
 .left-ui-shell {
   min-width: 0;
   min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   gap: 10px;
@@ -147,6 +150,7 @@ button {
 .right-ui-shell {
   min-width: 0;
   min-height: 0;
+  height: 100%;
 }
 
 .right-ui-shell {
@@ -215,7 +219,15 @@ button {
 
 .panel-shell {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+.panel-shell-body {
+  min-height: 0;
+  overflow: auto;
 }
 
 .left-panel-stack .panel-shell,
@@ -683,15 +695,21 @@ button.dock-card[data-equipment] {
 
 .action-panel .panel-shell-body {
   max-height: none;
-  overflow: auto;
+  overflow: hidden;
   padding-right: 2px;
+}
+
+.action-panel-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  min-height: 0;
 }
 
 .equipment-layout {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
-  margin-top: 14px;
 }
 
 .equipment-board,
@@ -759,6 +777,25 @@ button.dock-card[data-equipment] {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
   gap: 8px;
+}
+
+.shop-board {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.shop-list {
+  min-height: 0;
+  margin-top: 0;
+  overflow: auto;
+  align-content: start;
+  padding-right: 4px;
+}
+
+.utility-action-grid {
+  margin-top: 0;
 }
 
 .inventory-item.equipped,
@@ -1029,7 +1066,9 @@ button.dock-card[data-equipment] {
 
   .game-layout {
     grid-template-columns: 1fr;
+    height: auto;
     min-height: auto;
+    max-height: none;
   }
 
   .left-ui-shell {

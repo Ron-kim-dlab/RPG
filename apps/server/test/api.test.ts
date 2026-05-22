@@ -327,7 +327,7 @@ describe("http api", () => {
     expect(JSON.stringify(duplicateSlotSave.body)).toContain("same equipment slot");
   });
 
-  it("normalizes a blocked saved position to the scene spawn on player load", async () => {
+  it("preserves saved positions on passable obstacle zones during player load", async () => {
     const repository = new MemoryUserRepository();
     const world = createPlayableWorld();
     const context = await createAppContext({
@@ -337,7 +337,7 @@ describe("http api", () => {
     });
 
     const agent = request(context.app);
-    const blockedPlayer = {
+    const obstaclePlayer = {
       ...createStarterPlayer("stuck-hero", world),
       position: { x: 512, y: 384 },
     };
@@ -345,7 +345,7 @@ describe("http api", () => {
     await repository.saveAccount({
       username: "stuck-hero",
       passwordHash: "secret123",
-      player: blockedPlayer,
+      player: obstaclePlayer,
     });
 
     const login = await agent
@@ -359,6 +359,6 @@ describe("http api", () => {
       throw new Error("login response should be successful");
     }
 
-    expect(loginPayload.data.player.position).toEqual({ x: 512, y: 636 });
+    expect(loginPayload.data.player.position).toEqual({ x: 512, y: 384 });
   });
 });

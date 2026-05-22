@@ -35,20 +35,6 @@ export function resolveLocationSpawn(world: WorldContent, locationKey: string): 
   return location ? { ...location.scene.spawn } : fallbackPosition();
 }
 
-function isPositionInsideCollision(world: WorldContent, locationKey: string, position: PlayerSave["position"]): boolean {
-  const location = world.locations[locationKey];
-  if (!location) {
-    return false;
-  }
-
-  return location.scene.collisionZones.some((zone) => (
-    position.x >= zone.x
-    && position.x <= zone.x + zone.width
-    && position.y >= zone.y
-    && position.y <= zone.y + zone.height
-  ));
-}
-
 export function normalizePlayerPosition(player: PlayerSave, world: WorldContent): PlayerSave {
   const location = world.locations[player.locationKey];
   if (!location) {
@@ -64,7 +50,7 @@ export function normalizePlayerPosition(player: PlayerSave, world: WorldContent)
     && position.y >= 36
     && position.y <= location.scene.height - 36;
 
-  if (insideBounds && !isPositionInsideCollision(world, player.locationKey, position)) {
+  if (insideBounds) {
     return player;
   }
 
