@@ -270,6 +270,17 @@ export type FieldMonsterState = {
   spawnedAt: string;
 };
 
+export type DeathGraveState = {
+  id: string;
+  sceneId: string;
+  playerName: string;
+  defeatedBy: string;
+  x: number;
+  y: number;
+  createdAt: string;
+  expiresAt: string;
+};
+
 export type FieldMonsterClaimResult =
   | { ok: true; monster: FieldMonsterState }
   | { ok: false; reason: "busy" | "invalid_scene" | "not_found" | "offline" };

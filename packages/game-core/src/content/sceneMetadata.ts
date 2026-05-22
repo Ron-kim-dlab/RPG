@@ -155,6 +155,7 @@ const COMMON_TEXTURES = {
   npcTexturePath: NPC_TEXTURES.rangerGuide,
   portalTexturePath: `${GENERATED_SCENE_ROOT}/portal-rift.png`,
   encounterTexturePath: `${GENERATED_SCENE_ROOT}/encounter-danger-zone.png`,
+  graveTexturePath: `${GENERATED_SCENE_ROOT}/player-grave.png`,
 } as const;
 
 const HORIZONTAL_PORTAL = {
@@ -508,6 +509,10 @@ export function getGeneratedSceneTexturePaths(): string[] {
     )),
     COMMON_TEXTURES.portalTexturePath,
   ]));
+}
+
+export function getDeathGraveTexturePath(): string {
+  return COMMON_TEXTURES.graveTexturePath;
 }
 
 export function getSceneAssetBundle(themeId: SceneThemeId, layoutId: SceneLayoutId, mainLocation?: string): SceneAssetBundle {

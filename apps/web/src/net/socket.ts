@@ -1,6 +1,7 @@
 import { io, type Socket } from "socket.io-client";
 import type {
   ChatMessage,
+  DeathGraveState,
   Facing,
   FieldMonsterClaimResult,
   FieldMonsterState,
@@ -23,6 +24,8 @@ type RealtimeHandlers = {
   onChatMessage: (message: ChatMessage) => void;
   onFieldMonstersSnapshot: (snapshot: FieldMonsterState[]) => void;
   onFieldMonstersUpdate: (snapshot: FieldMonsterState[]) => void;
+  onDeathGravesSnapshot: (snapshot: DeathGraveState[]) => void;
+  onDeathGravesUpdate: (snapshot: DeathGraveState[]) => void;
   onConnect: () => void;
   onDisconnect: (reason: string) => void;
   onConnectError: (message: string) => void;
@@ -68,6 +71,8 @@ export class PresenceClient {
     this.socket.on("chat:message", this.handlers.onChatMessage);
     this.socket.on("field-monsters:snapshot", this.handlers.onFieldMonstersSnapshot);
     this.socket.on("field-monsters:update", this.handlers.onFieldMonstersUpdate);
+    this.socket.on("death-graves:snapshot", this.handlers.onDeathGravesSnapshot);
+    this.socket.on("death-graves:update", this.handlers.onDeathGravesUpdate);
   }
 
   disconnect(): void {
@@ -140,6 +145,12 @@ export class PresenceClient {
   releaseFieldMonster(monsterId: string): void {
     if (this.isConnected) {
       this.socket?.emit("field-monsters:release", { monsterId });
+    }
+  }
+
+  createDeathGrave(sceneId: string, x: number, y: number, defeatedBy: string): void {
+    if (this.isConnected) {
+      this.socket?.emit("death-graves:create", { sceneId, x, y, defeatedBy });
     }
   }
 

@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 import type {
+  DeathGraveState,
   DialogueNpc,
   Facing,
   FieldMonsterState,
@@ -21,6 +22,7 @@ type BridgeCallbacks = {
   onSceneChange: (locationKey: string) => void;
   onOpenLocationStory: () => void;
   onInteractNpc: (npc: DialogueNpc) => void;
+  onInteractGrave: (grave: DeathGraveState) => void;
   onFieldMonsterContact: (monster: FieldMonsterState) => void;
   onFieldPromptChange: (prompt: FieldPrompt) => void;
 };
@@ -84,6 +86,7 @@ export class GameBridge {
     player: PlayerSave | null,
     nearbyPlayers: PresenceState[],
     fieldMonsters: FieldMonsterState[],
+    deathGraves: DeathGraveState[],
   ): void {
     if (!world) {
       return;
@@ -95,7 +98,7 @@ export class GameBridge {
     }
 
     this.overworldScene.attach(world, player, this.callbacks);
-    this.overworldScene.sync(player, nearbyPlayers, fieldMonsters);
+    this.overworldScene.sync(player, nearbyPlayers, fieldMonsters, deathGraves);
     this.ensureScene("overworld");
   }
 

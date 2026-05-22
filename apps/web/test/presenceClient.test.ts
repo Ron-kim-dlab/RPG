@@ -47,6 +47,8 @@ describe("PresenceClient", () => {
         onChatMessage: vi.fn(),
         onFieldMonstersSnapshot: vi.fn(),
         onFieldMonstersUpdate: vi.fn(),
+        onDeathGravesSnapshot: vi.fn(),
+        onDeathGravesUpdate: vi.fn(),
         onConnect,
         onDisconnect,
         onConnectError: vi.fn(),

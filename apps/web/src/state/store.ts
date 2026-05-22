@@ -1,6 +1,7 @@
 import type {
   BattleState,
   ChatMessage,
+  DeathGraveState,
   FieldMonsterState,
   PlayerSave,
   PresenceState,
@@ -9,7 +10,7 @@ import type {
 import type { BattleReport, FieldPrompt } from "../gameplay";
 
 export type DialogueState = {
-  kind: "location" | "npc";
+  kind: "location" | "npc" | "grave";
   title: string;
   locationKey: string;
   lines: string[];
@@ -24,6 +25,7 @@ export type AppState = {
   battleReport: BattleReport | null;
   presence: PresenceState[];
   fieldMonsters: FieldMonsterState[];
+  deathGraves: DeathGraveState[];
   chatMessages: ChatMessage[];
   dialogue: DialogueState | null;
   fieldPrompt: FieldPrompt | null;
@@ -44,6 +46,7 @@ export class AppStore {
     battleReport: null,
     presence: [],
     fieldMonsters: [],
+    deathGraves: [],
     chatMessages: [],
     dialogue: null,
     fieldPrompt: null,

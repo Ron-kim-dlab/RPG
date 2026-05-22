@@ -1,7 +1,7 @@
 import type { AddressInfo } from "node:net";
 import { io as createClient, type Socket as ClientSocket } from "socket.io-client";
 import { describe, expect, it } from "vitest";
-import type { FieldMonsterClaimResult, FieldMonsterState, PresenceState, WorldContent } from "@rpg/game-core";
+import type { DeathGraveState, FieldMonsterClaimResult, FieldMonsterState, PresenceState, WorldContent } from "@rpg/game-core";
 import { createStarterPlayer, DEFAULT_PLAYER_AVATAR_ID } from "@rpg/game-core";
 import { createAppContext } from "../src/app";
 import { signToken } from "../src/http/auth";
@@ -306,6 +306,73 @@ describe("realtime presence", () => {
       const leftEvent = onceEvent<string>(socketB, "presence:left");
       socketA.disconnect();
       expect(await leftEvent).toBe("hero-a");
+    } finally {
+      sockets.forEach((socket) => socket.disconnect());
+      await new Promise<void>((resolve, reject) => context.httpServer.close((error) => (error ? reject(error) : resolve())));
+    }
+  }, 15_000);
+
+  it("shares temporary death graves inside the same scene", async () => {
+    const repository = new MemoryUserRepository();
+    const world = createWorld();
+    const env = {
+      runtimeMode: "test" as const,
+      port: 0,
+      clientOrigin: "http://localhost:5173",
+      jwtSecret: "0123456789abcdef0123456789abcdef",
+      jwtExpiresIn: "7d",
+      passwordHashRounds: 10,
+      storageDriver: "memory" as const,
+    };
+
+    await repository.saveAccount({
+      username: "hero-a",
+      passwordHash: "plain",
+      player: createStarterPlayer("hero-a", world),
+    });
+    await repository.saveAccount({
+      username: "hero-b",
+      passwordHash: "plain",
+      player: createStarterPlayer("hero-b", world),
+    });
+
+    const context = await createAppContext({
+      env,
+      repository,
+      worldLoader: async () => world,
+    });
+
+    await new Promise<void>((resolve) => context.httpServer.listen(0, resolve));
+    const address = context.httpServer.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const sockets: ClientSocket[] = [];
+
+    try {
+      const socketA = await connectClient(baseUrl, signToken(env, "hero-a"));
+      const socketB = await connectClient(baseUrl, signToken(env, "hero-b"));
+      sockets.push(socketA, socketB);
+
+      const snapshotB = onceEvent<DeathGraveState[]>(socketB, "death-graves:snapshot");
+      socketB.emit("presence:join", { sceneId: "scene-start", x: 50, y: 60, facing: "left", avatarId: DEFAULT_PLAYER_AVATAR_ID });
+      expect(await snapshotB).toEqual([]);
+
+      const snapshotA = onceEvent<DeathGraveState[]>(socketA, "death-graves:snapshot");
+      socketA.emit("presence:join", { sceneId: "scene-start", x: 120, y: 140, facing: "down", avatarId: DEFAULT_PLAYER_AVATAR_ID });
+      await snapshotA;
+
+      const graveUpdate = onceEvent<DeathGraveState[]>(socketB, "death-graves:update");
+      socketA.emit("death-graves:create", { sceneId: "scene-start", x: 120, y: 140, defeatedBy: "Slime" });
+      const graves = await graveUpdate;
+
+      expect(graves).toHaveLength(1);
+      expect(graves[0]).toMatchObject({
+        sceneId: "scene-start",
+        playerName: "hero-a",
+        defeatedBy: "Slime",
+        x: 120,
+        y: 140,
+      });
+      expect(Date.parse(graves[0]!.expiresAt) - Date.parse(graves[0]!.createdAt)).toBe(5 * 60 * 1000);
     } finally {
       sockets.forEach((socket) => socket.disconnect());
       await new Promise<void>((resolve, reject) => context.httpServer.close((error) => (error ? reject(error) : resolve())));

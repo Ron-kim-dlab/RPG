@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import {
+  getDeathGraveTexturePath,
   getPlayerAvatarTexturePath,
+  type DeathGraveState,
   type DialogueNpc,
   type EncounterZone,
   type Facing,
@@ -22,6 +24,7 @@ type SceneCallbacks = {
   onSceneChange: (locationKey: string) => void;
   onOpenLocationStory: () => void;
   onInteractNpc: (npc: DialogueNpc) => void;
+  onInteractGrave: (grave: DeathGraveState) => void;
   onFieldMonsterContact: (monster: FieldMonsterState) => void;
   onFieldPromptChange: (prompt: FieldPrompt) => void;
 };
@@ -67,10 +70,16 @@ type FieldMonsterSprite = {
   texturePath: string;
 };
 
+type DeathGraveSprite = {
+  container: Phaser.GameObjects.Container;
+  label: Phaser.GameObjects.Text;
+};
+
 const REMOTE_INTERPOLATION_SPEED = 12;
 const REMOTE_SNAP_DISTANCE = 240;
 const MONSTER_CONTACT_DISTANCE = 42;
 const BOSS_CONTACT_DISTANCE = 58;
+const GRAVE_INTERACTION_DISTANCE = 58;
 const MONSTER_CONTACT_COOLDOWN_MS = 1200;
 
 export class OverworldScene extends Phaser.Scene {
@@ -81,7 +90,9 @@ export class OverworldScene extends Phaser.Scene {
   private playerSprite!: Phaser.GameObjects.Sprite;
   private remoteSprites = new Map<string, RemotePlayerSprite>();
   private fieldMonsterSprites = new Map<string, FieldMonsterSprite>();
+  private deathGraveSprites = new Map<string, DeathGraveSprite>();
   private fieldMonsters: FieldMonsterState[] = [];
+  private deathGraves: DeathGraveState[] = [];
   private portals: Array<{ zone: Phaser.Geom.Rectangle; locationKey: string; label: string }> = [];
   private encounterZones: Array<{ zone: Phaser.Geom.Rectangle; data: EncounterZone }> = [];
   private collisionZones: Phaser.Geom.Rectangle[] = [];
@@ -138,18 +149,25 @@ export class OverworldScene extends Phaser.Scene {
     }
   }
 
-  sync(player: PlayerSave, nearbyPlayers: PresenceState[], fieldMonsters: FieldMonsterState[]): void {
+  sync(
+    player: PlayerSave,
+    nearbyPlayers: PresenceState[],
+    fieldMonsters: FieldMonsterState[],
+    deathGraves: DeathGraveState[],
+  ): void {
     this.playerState = player;
     const location = this.world?.locations[player.locationKey];
     if (location && location.scene.sceneId !== this.sceneDefinition?.sceneId) {
       this.buildLocation();
     }
     this.fieldMonsters = fieldMonsters.filter((monster) => monster.sceneId === this.sceneDefinition?.sceneId);
+    this.deathGraves = deathGraves.filter((grave) => grave.sceneId === this.sceneDefinition?.sceneId);
 
     if (this.playerSprite) {
       this.playerSprite.setPosition(player.position.x, player.position.y);
     }
     this.syncFieldMonsterSprites(this.fieldMonsters);
+    this.syncDeathGraveSprites(this.deathGraves);
 
     const activeUsers = new Set<string>();
     nearbyPlayers
@@ -222,6 +240,7 @@ export class OverworldScene extends Phaser.Scene {
 
     const activePortal = this.findActivePortal(nextX, nextY);
     const activeNpc = this.findActiveNpc(nextX, nextY);
+    const activeGrave = this.findActiveGrave(nextX, nextY);
     const activeFieldMonster = this.findActiveFieldMonster(nextX, nextY);
     const hasPendingLocationStory = this.callbacks.hasPendingLocationStory();
     const prompt = this.resolvePrompt({
@@ -229,6 +248,7 @@ export class OverworldScene extends Phaser.Scene {
       hasPendingLocationStory,
       portal: activePortal,
       npc: activeNpc?.npc ?? null,
+      grave: activeGrave,
     });
     this.syncFieldPrompt(prompt);
     this.syncOverlayState(overlayMode);
@@ -252,6 +272,11 @@ export class OverworldScene extends Phaser.Scene {
 
     if (activeNpc && Phaser.Input.Keyboard.JustDown(this.keySpace)) {
       this.callbacks.onInteractNpc(activeNpc.npc);
+      return;
+    }
+
+    if (activeGrave && Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+      this.callbacks.onInteractGrave(activeGrave);
       return;
     }
 
@@ -378,6 +403,46 @@ export class OverworldScene extends Phaser.Scene {
     });
   }
 
+  private syncDeathGraveSprites(graves: DeathGraveState[]): void {
+    const activeIds = new Set<string>();
+    const texturePath = getDeathGraveTexturePath();
+    graves.forEach((grave) => {
+      activeIds.add(grave.id);
+      const existing = this.deathGraveSprites.get(grave.id);
+      if (existing) {
+        existing.container.setPosition(grave.x, grave.y);
+        existing.label.setText(grave.playerName);
+        return;
+      }
+
+      const shadow = this.add.ellipse(0, 22, 48, 14, 0x050908, 0.42);
+      const sprite = this.add
+        .sprite(0, 0, texturePath)
+        .setDisplaySize(54, 54);
+      const label = this.createReadableLabel(0, -36, grave.playerName, {
+        backgroundColor: "rgba(18, 22, 24, 0.92)",
+        color: "#e5eef4",
+        depth: 7,
+        fontSize: "11px",
+        originY: 1,
+      });
+      const container = this.add
+        .container(grave.x, grave.y, [shadow, sprite, label])
+        .setDepth(4);
+      this.deathGraveSprites.set(grave.id, {
+        container,
+        label,
+      });
+    });
+
+    Array.from(this.deathGraveSprites.entries()).forEach(([graveId, rendered]) => {
+      if (!activeIds.has(graveId)) {
+        rendered.container.destroy();
+        this.deathGraveSprites.delete(graveId);
+      }
+    });
+  }
+
   private syncGameplayCapture(gameplayInputBlocked: boolean): void {
     const keyboard = this.input.keyboard;
     if (!keyboard || gameplayInputBlocked === this.gameplayCaptureDisabled) {
@@ -406,6 +471,7 @@ export class OverworldScene extends Phaser.Scene {
 
     this.sceneDefinition = location.scene;
     this.fieldMonsters = this.fieldMonsters.filter((monster) => monster.sceneId === location.scene.sceneId);
+    this.deathGraves = this.deathGraves.filter((grave) => grave.sceneId === location.scene.sceneId);
     this.cameras.main.setBackgroundColor(location.scene.backgroundColor);
 
     this.children.removeAll(true);
@@ -420,6 +486,8 @@ export class OverworldScene extends Phaser.Scene {
     this.remoteSprites.clear();
     this.fieldMonsterSprites.forEach((monster) => monster.container.destroy());
     this.fieldMonsterSprites.clear();
+    this.deathGraveSprites.forEach((grave) => grave.container.destroy());
+    this.deathGraveSprites.clear();
 
     this.renderSceneMap(location.scene);
 
@@ -570,6 +638,7 @@ export class OverworldScene extends Phaser.Scene {
       .setDisplaySize(32, 32)
       .setDepth(8);
     this.syncFieldMonsterSprites(this.fieldMonsters);
+    this.syncDeathGraveSprites(this.deathGraves);
     this.hintText = this.createReadableLabel(
       this.playerState.position.x,
       this.playerState.position.y - 34,
@@ -610,6 +679,12 @@ export class OverworldScene extends Phaser.Scene {
     return this.npcMarkers.find(({ sprite }) => Phaser.Math.Distance.Between(sprite.x, sprite.y, x, y) < 64) ?? null;
   }
 
+  private findActiveGrave(x: number, y: number): DeathGraveState | null {
+    return this.deathGraves.find((grave) => (
+      Phaser.Math.Distance.Between(grave.x, grave.y, x, y) <= GRAVE_INTERACTION_DISTANCE
+    )) ?? null;
+  }
+
   private findActiveFieldMonster(x: number, y: number): FieldMonsterState | null {
     return this.fieldMonsters.find((monster) => {
       if (monster.inBattleBy) {
@@ -625,6 +700,7 @@ export class OverworldScene extends Phaser.Scene {
     hasPendingLocationStory: boolean;
     portal: { label: string } | null;
     npc: DialogueNpc | null;
+    grave: DeathGraveState | null;
   }): FieldPrompt {
     if (params.overlayMode === "battle") {
       return {
@@ -661,6 +737,16 @@ export class OverworldScene extends Phaser.Scene {
         kind: "npc",
         title: `${params.npc.name}와 대화`,
         body: "NPC 근처에서 Space 를 누르면 대화 패널이 열립니다.",
+        actionLabel: "Space",
+        tone: "accent",
+      };
+    }
+
+    if (params.grave) {
+      return {
+        kind: "grave",
+        title: "묘지",
+        body: "묘지 근처에서 Space를 누르면 남겨진 기록을 확인할 수 있습니다.",
         actionLabel: "Space",
         tone: "accent",
       };
@@ -729,6 +815,8 @@ export class OverworldScene extends Phaser.Scene {
         return `${prompt.title.replace(/ 준비$/, "")}하려면 ${prompt.actionLabel} 누르기`;
       case "npc":
         return `${prompt.title}하려면 ${prompt.actionLabel} 누르기`;
+      case "grave":
+        return `묘지를 살펴보려면 ${prompt.actionLabel} 누르기`;
       case "story":
         return `이야기 보려면 ${prompt.actionLabel} 누르기`;
       default:

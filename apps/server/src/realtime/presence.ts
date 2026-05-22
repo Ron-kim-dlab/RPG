@@ -2,6 +2,7 @@ import type { Server } from "socket.io";
 import {
   isPlayerAvatarId,
   type ChatMessage,
+  type DeathGraveState,
   type FieldMonsterClaimResult,
   type Facing,
   type PresenceState,
@@ -9,6 +10,7 @@ import {
 } from "@rpg/game-core";
 import type { ServerEnv } from "../config/env";
 import { verifyToken } from "../http/auth";
+import { DeathGraveManager } from "./deathGraves";
 import { FieldMonsterManager } from "./fieldMonsters";
 
 type AuthenticatedSocketData = {
@@ -38,7 +40,9 @@ type FieldMonsterClaimAck = (result: FieldMonsterClaimResult) => void;
 
 const FACING_VALUES = new Set<Facing>(["up", "down", "left", "right"]);
 const MAX_CHAT_LENGTH = 200;
+const MAX_DEFEATED_BY_LENGTH = 80;
 const FIELD_MONSTER_REFILL_INTERVAL_MS = 10_000;
+const DEATH_GRAVE_CLEANUP_INTERVAL_MS = 10_000;
 
 function colorFromUsername(username: string): string {
   const palette = ["#f25f5c", "#247ba0", "#70c1b3", "#ffe066", "#50514f", "#f79d65"];
@@ -141,10 +145,42 @@ function readFieldMonsterId(payload: unknown): string | null {
   return monsterId.length > 0 ? monsterId : null;
 }
 
+function readDeathGravePayload(
+  payload: unknown,
+  sceneBounds: Map<string, SceneBounds>,
+): Pick<DeathGraveState, "sceneId" | "defeatedBy" | "x" | "y"> | null {
+  const record = asRecord(payload);
+  if (!record || typeof record.sceneId !== "string") {
+    return null;
+  }
+
+  const bounds = sceneBounds.get(record.sceneId);
+  if (!bounds) {
+    return null;
+  }
+
+  if (!isCoordinateInsideScene(record.x, bounds.width) || !isCoordinateInsideScene(record.y, bounds.height)) {
+    return null;
+  }
+
+  const defeatedBy = typeof record.defeatedBy === "string" ? record.defeatedBy.trim() : "";
+  if (defeatedBy.length === 0 || defeatedBy.length > MAX_DEFEATED_BY_LENGTH) {
+    return null;
+  }
+
+  return {
+    sceneId: record.sceneId,
+    defeatedBy,
+    x: record.x,
+    y: record.y,
+  };
+}
+
 export function configureRealtime(io: Server, env: ServerEnv, world: WorldContent): void {
   const presenceByScene = new Map<string, Map<string, PresenceEntry>>();
   const sceneBounds = buildSceneBounds(world);
   const fieldMonsters = new FieldMonsterManager(world);
+  const deathGraves = new DeathGraveManager();
 
   const serializeRoom = (room: Map<string, PresenceEntry>): PresenceState[] =>
     Array.from(room.values()).map((entry) => ({
@@ -164,11 +200,24 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
     });
   };
 
+  const broadcastDeathGraveScenes = (sceneIds: string[]) => {
+    sceneIds.forEach((sceneId) => {
+      io.to(sceneId).emit("death-graves:update", deathGraves.getSceneGraves(sceneId));
+    });
+  };
+
   const fieldMonsterRefillTimer = setInterval(() => {
     broadcastFieldMonsterScenes(fieldMonsters.refillAll());
   }, FIELD_MONSTER_REFILL_INTERVAL_MS);
   if (typeof fieldMonsterRefillTimer === "object" && "unref" in fieldMonsterRefillTimer) {
     fieldMonsterRefillTimer.unref();
+  }
+
+  const deathGraveCleanupTimer = setInterval(() => {
+    broadcastDeathGraveScenes(deathGraves.cleanupExpired());
+  }, DEATH_GRAVE_CLEANUP_INTERVAL_MS);
+  if (typeof deathGraveCleanupTimer === "object" && "unref" in deathGraveCleanupTimer) {
+    deathGraveCleanupTimer.unref();
   }
 
   io.use((socket, next) => {
@@ -238,6 +287,7 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
 
       socket.emit("presence:snapshot", serializeRoom(room));
       socket.emit("field-monsters:snapshot", fieldMonsters.getSceneMonsters(sceneId));
+      socket.emit("death-graves:snapshot", deathGraves.getSceneGraves(sceneId));
       socket.to(sceneId).emit(hadExisting ? "presence:update" : "presence:joined", state);
     };
 
@@ -336,6 +386,19 @@ export function configureRealtime(io: Server, env: ServerEnv, world: WorldConten
         return;
       }
       broadcastFieldMonsterScenes(fieldMonsters.completeBattle(monsterId, data.username));
+    });
+
+    socket.on("death-graves:create", (payload: unknown) => {
+      const gravePayload = readDeathGravePayload(payload, sceneBounds);
+      if (!gravePayload || data.sceneId !== gravePayload.sceneId) {
+        return;
+      }
+
+      const result = deathGraves.createGrave({
+        ...gravePayload,
+        playerName: data.username,
+      });
+      broadcastDeathGraveScenes(result.changedSceneIds);
     });
 
     socket.on("disconnect", () => {
