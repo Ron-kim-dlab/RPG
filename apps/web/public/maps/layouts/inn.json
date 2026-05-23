@@ -10,7 +10,7 @@
   "tileheight": 16,
   "infinite": false,
   "nextlayerid": 3,
-  "nextobjectid": 7,
+  "nextobjectid": 10,
   "properties": [
     { "name": "layoutId", "type": "string", "value": "inn" },
     { "name": "placeholder", "type": "bool", "value": true }
@@ -33,7 +33,10 @@
         { "id": 3, "name": "desk", "class": "stall", "x": 336, "y": 150, "width": 352, "height": 46, "properties": [{ "name": "label", "type": "string", "value": "rest" }] },
         { "id": 4, "name": "bed-left", "class": "bed", "x": 152, "y": 302, "width": 208, "height": 90 },
         { "id": 5, "name": "bed-right", "class": "bed", "x": 664, "y": 302, "width": 208, "height": 90 },
-        { "id": 6, "name": "lamp", "class": "altar", "x": 480, "y": 102, "width": 64, "height": 64, "properties": [{ "name": "alpha", "type": "float", "value": 0.64 }] }
+        { "id": 6, "name": "lamp", "class": "altar", "x": 480, "y": 102, "width": 64, "height": 64, "properties": [{ "name": "alpha", "type": "float", "value": 0.64 }] },
+        { "id": 7, "name": "hearth", "class": "altar", "x": 236, "y": 420, "width": 128, "height": 110 },
+        { "id": 8, "name": "tavern-table", "class": "stall", "x": 448, "y": 440, "width": 128, "height": 88 },
+        { "id": 9, "name": "blanket-chest", "class": "bed", "x": 674, "y": 442, "width": 122, "height": 70 }
       ]
     }
   ],
