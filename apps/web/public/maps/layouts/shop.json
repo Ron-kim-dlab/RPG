@@ -10,7 +10,7 @@
   "tileheight": 16,
   "infinite": false,
   "nextlayerid": 3,
-  "nextobjectid": 7,
+  "nextobjectid": 10,
   "properties": [
     { "name": "layoutId", "type": "string", "value": "shop" },
     { "name": "placeholder", "type": "bool", "value": true }
@@ -33,7 +33,10 @@
         { "id": 3, "name": "counter", "class": "stall", "x": 320, "y": 154, "width": 384, "height": 48, "properties": [{ "name": "label", "type": "string", "value": "forge" }] },
         { "id": 4, "name": "rack-left", "class": "rock", "x": 128, "y": 138, "width": 72, "height": 188 },
         { "id": 5, "name": "rack-right", "class": "rock", "x": 824, "y": 138, "width": 72, "height": 188 },
-        { "id": 6, "name": "anvil", "class": "building", "x": 444, "y": 100, "width": 136, "height": 42, "properties": [{ "name": "alpha", "type": "float", "value": 0.7 }] }
+        { "id": 6, "name": "anvil", "class": "building", "x": 444, "y": 100, "width": 136, "height": 42, "properties": [{ "name": "alpha", "type": "float", "value": 0.7 }] },
+        { "id": 7, "name": "coal-forge", "class": "building", "x": 272, "y": 360, "width": 128, "height": 96 },
+        { "id": 8, "name": "weapon-display", "class": "rock", "x": 620, "y": 360, "width": 112, "height": 124 },
+        { "id": 9, "name": "tool-chest", "class": "stall", "x": 432, "y": 430, "width": 160, "height": 64 }
       ]
     }
   ],

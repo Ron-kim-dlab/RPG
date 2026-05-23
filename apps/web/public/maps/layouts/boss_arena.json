@@ -10,7 +10,7 @@
   "tileheight": 16,
   "infinite": false,
   "nextlayerid": 3,
-  "nextobjectid": 7,
+  "nextobjectid": 10,
   "properties": [
     { "name": "layoutId", "type": "string", "value": "boss_arena" },
     { "name": "placeholder", "type": "bool", "value": true }
@@ -33,7 +33,10 @@
         { "id": 3, "name": "pillar-nw", "class": "rock", "x": 194, "y": 146, "width": 70, "height": 70 },
         { "id": 4, "name": "pillar-ne", "class": "rock", "x": 760, "y": 146, "width": 70, "height": 70 },
         { "id": 5, "name": "pillar-sw", "class": "rock", "x": 194, "y": 518, "width": 70, "height": 70 },
-        { "id": 6, "name": "pillar-se", "class": "rock", "x": 760, "y": 518, "width": 70, "height": 70, "properties": [{ "name": "label", "type": "string", "value": "boss" }] }
+        { "id": 6, "name": "pillar-se", "class": "rock", "x": 760, "y": 518, "width": 70, "height": 70, "properties": [{ "name": "label", "type": "string", "value": "boss" }] },
+        { "id": 7, "name": "obsidian-obelisk", "class": "rock", "x": 460, "y": 116, "width": 104, "height": 144 },
+        { "id": 8, "name": "ritual-brazier", "class": "rock", "x": 332, "y": 486, "width": 84, "height": 84 },
+        { "id": 9, "name": "broken-altar", "class": "rock", "x": 588, "y": 486, "width": 128, "height": 76 }
       ]
     }
   ],

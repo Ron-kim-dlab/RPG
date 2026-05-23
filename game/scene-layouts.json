@@ -14,9 +14,13 @@
         { "x": 58, "y": 324, "width": 24, "height": 120 }
       ],
       "collisionZones": [
-        { "id": "north-left-block", "x": 96, "y": 96, "width": 240, "height": 164 },
-        { "id": "north-right-block", "x": 688, "y": 96, "width": 240, "height": 164 },
-        { "id": "center-planter", "x": 432, "y": 304, "width": 160, "height": 88 }
+        { "id": "west-house-base", "x": 132, "y": 186, "width": 152, "height": 54 },
+        { "id": "east-house-base", "x": 740, "y": 186, "width": 152, "height": 54 },
+        { "id": "center-planter-base", "x": 460, "y": 350, "width": 104, "height": 36 },
+        { "id": "notice-board-base", "x": 644, "y": 334, "width": 88, "height": 30 },
+        { "id": "gate-notice-base", "x": 476, "y": 144, "width": 72, "height": 28 },
+        { "id": "guard-booth-base", "x": 384, "y": 178, "width": 80, "height": 42 },
+        { "id": "lantern-post-base", "x": 330, "y": 344, "width": 28, "height": 28 }
       ]
     },
     "shop": {
@@ -33,9 +37,13 @@
         { "x": 58, "y": 324, "width": 24, "height": 120 }
       ],
       "collisionZones": [
-        { "id": "counter", "x": 248, "y": 150, "width": 528, "height": 68 },
-        { "id": "rack-left", "x": 110, "y": 110, "width": 108, "height": 240 },
-        { "id": "rack-right", "x": 806, "y": 110, "width": 108, "height": 240 }
+        { "id": "counter-base", "x": 320, "y": 172, "width": 384, "height": 24 },
+        { "id": "rack-left-base", "x": 136, "y": 246, "width": 56, "height": 60 },
+        { "id": "rack-right-base", "x": 832, "y": 246, "width": 56, "height": 60 },
+        { "id": "anvil-base", "x": 468, "y": 122, "width": 88, "height": 28 },
+        { "id": "coal-forge-base", "x": 294, "y": 412, "width": 84, "height": 34 },
+        { "id": "weapon-display-base", "x": 646, "y": 452, "width": 60, "height": 42 },
+        { "id": "tool-chest-base", "x": 456, "y": 462, "width": 112, "height": 30 }
       ]
     },
     "inn": {
@@ -52,9 +60,13 @@
         { "x": 58, "y": 324, "width": 24, "height": 120 }
       ],
       "collisionZones": [
-        { "id": "reception", "x": 272, "y": 142, "width": 480, "height": 58 },
-        { "id": "bed-left", "x": 138, "y": 288, "width": 236, "height": 120 },
-        { "id": "bed-right", "x": 650, "y": 288, "width": 236, "height": 120 }
+        { "id": "reception-base", "x": 336, "y": 174, "width": 352, "height": 22 },
+        { "id": "bed-left-base", "x": 172, "y": 350, "width": 168, "height": 34 },
+        { "id": "bed-right-base", "x": 684, "y": 350, "width": 168, "height": 34 },
+        { "id": "lamp-base", "x": 496, "y": 146, "width": 32, "height": 18 },
+        { "id": "hearth-base", "x": 260, "y": 492, "width": 80, "height": 32 },
+        { "id": "tavern-table-base", "x": 470, "y": 494, "width": 84, "height": 32 },
+        { "id": "blanket-chest-base", "x": 700, "y": 480, "width": 70, "height": 26 }
       ]
     },
     "skill_shop": {
@@ -71,9 +83,13 @@
         { "x": 58, "y": 324, "width": 24, "height": 120 }
       ],
       "collisionZones": [
-        { "id": "altar", "x": 404, "y": 146, "width": 216, "height": 78 },
-        { "id": "archive-left", "x": 120, "y": 120, "width": 110, "height": 244 },
-        { "id": "archive-right", "x": 794, "y": 120, "width": 110, "height": 244 }
+        { "id": "altar-base", "x": 444, "y": 188, "width": 136, "height": 26 },
+        { "id": "archive-left-base", "x": 140, "y": 270, "width": 58, "height": 46 },
+        { "id": "archive-right-base", "x": 826, "y": 270, "width": 58, "height": 46 },
+        { "id": "sigil-base", "x": 480, "y": 332, "width": 64, "height": 18 },
+        { "id": "crystal-lectern-base", "x": 322, "y": 486, "width": 52, "height": 28 },
+        { "id": "scroll-archive-base", "x": 648, "y": 496, "width": 60, "height": 34 },
+        { "id": "rune-brazier-base", "x": 506, "y": 498, "width": 38, "height": 24 }
       ]
     },
     "plaza": {
@@ -90,9 +106,13 @@
         { "x": 58, "y": 324, "width": 24, "height": 120 }
       ],
       "collisionZones": [
-        { "id": "fountain", "x": 404, "y": 260, "width": 216, "height": 152 },
-        { "id": "market-left", "x": 122, "y": 138, "width": 154, "height": 104 },
-        { "id": "market-right", "x": 748, "y": 138, "width": 154, "height": 104 }
+        { "id": "fountain-base", "x": 448, "y": 344, "width": 128, "height": 48 },
+        { "id": "market-left-base", "x": 156, "y": 206, "width": 100, "height": 34 },
+        { "id": "market-right-base", "x": 768, "y": 206, "width": 100, "height": 34 },
+        { "id": "banner-base", "x": 484, "y": 148, "width": 56, "height": 20 },
+        { "id": "flower-fountain-base", "x": 334, "y": 492, "width": 72, "height": 28 },
+        { "id": "produce-stall-base", "x": 632, "y": 492, "width": 96, "height": 30 },
+        { "id": "banner-stand-base", "x": 862, "y": 488, "width": 40, "height": 26 }
       ]
     },
     "field": {
@@ -109,9 +129,13 @@
         { "x": 58, "y": 324, "width": 24, "height": 120 }
       ],
       "collisionZones": [
-        { "id": "tree-cluster-left", "x": 108, "y": 148, "width": 172, "height": 208 },
-        { "id": "tree-cluster-right", "x": 744, "y": 128, "width": 172, "height": 224 },
-        { "id": "rock-bank", "x": 404, "y": 520, "width": 224, "height": 84 }
+        { "id": "tree-cluster-left-base", "x": 154, "y": 296, "width": 84, "height": 48 },
+        { "id": "tree-cluster-right-base", "x": 784, "y": 302, "width": 86, "height": 50 },
+        { "id": "rock-bank-base", "x": 438, "y": 574, "width": 156, "height": 24 },
+        { "id": "tree-stump-base", "x": 292, "y": 214, "width": 44, "height": 22 },
+        { "id": "boulder-cluster-base", "x": 696, "y": 510, "width": 72, "height": 26 },
+        { "id": "camp-base", "x": 494, "y": 150, "width": 40, "height": 18 },
+        { "id": "traveler-camp-base", "x": 620, "y": 176, "width": 56, "height": 24 }
       ]
     },
     "boss_arena": {
@@ -128,10 +152,13 @@
         { "x": 58, "y": 324, "width": 24, "height": 120 }
       ],
       "collisionZones": [
-        { "id": "pillar-nw", "x": 178, "y": 134, "width": 94, "height": 94 },
-        { "id": "pillar-ne", "x": 752, "y": 134, "width": 94, "height": 94 },
-        { "id": "pillar-sw", "x": 178, "y": 506, "width": 94, "height": 94 },
-        { "id": "pillar-se", "x": 752, "y": 506, "width": 94, "height": 94 }
+        { "id": "pillar-nw-base", "x": 202, "y": 186, "width": 54, "height": 24 },
+        { "id": "pillar-ne-base", "x": 768, "y": 186, "width": 54, "height": 24 },
+        { "id": "pillar-sw-base", "x": 202, "y": 558, "width": 54, "height": 24 },
+        { "id": "pillar-se-base", "x": 768, "y": 558, "width": 54, "height": 24 },
+        { "id": "obsidian-obelisk-base", "x": 486, "y": 230, "width": 52, "height": 28 },
+        { "id": "ritual-brazier-base", "x": 354, "y": 538, "width": 40, "height": 22 },
+        { "id": "broken-altar-base", "x": 616, "y": 530, "width": 80, "height": 24 }
       ]
     }
   }

@@ -10,7 +10,7 @@
   "tileheight": 16,
   "infinite": false,
   "nextlayerid": 3,
-  "nextobjectid": 7,
+  "nextobjectid": 10,
   "properties": [
     { "name": "layoutId", "type": "string", "value": "town_gate" },
     { "name": "placeholder", "type": "bool", "value": true }
@@ -33,7 +33,10 @@
         { "id": 3, "name": "west-house", "class": "building", "x": 112, "y": 96, "width": 192, "height": 160, "properties": [{ "name": "label", "type": "string", "value": "west" }] },
         { "id": 4, "name": "east-house", "class": "building", "x": 720, "y": 96, "width": 192, "height": 160, "properties": [{ "name": "label", "type": "string", "value": "east" }] },
         { "id": 5, "name": "planter", "class": "tree", "x": 448, "y": 320, "width": 128, "height": 80, "properties": [{ "name": "alpha", "type": "float", "value": 0.76 }] },
-        { "id": 6, "name": "notice", "class": "stall", "x": 468, "y": 120, "width": 88, "height": 48, "properties": [{ "name": "label", "type": "string", "value": "gate" }] }
+        { "id": 6, "name": "notice", "class": "stall", "x": 468, "y": 120, "width": 88, "height": 48, "properties": [{ "name": "label", "type": "string", "value": "gate" }] },
+        { "id": 7, "name": "guard-booth", "class": "building", "x": 360, "y": 82, "width": 128, "height": 132 },
+        { "id": 8, "name": "lantern-post", "class": "building", "x": 318, "y": 284, "width": 48, "height": 96 },
+        { "id": 9, "name": "notice-board", "class": "stall", "x": 628, "y": 288, "width": 120, "height": 76 }
       ]
     }
   ],
