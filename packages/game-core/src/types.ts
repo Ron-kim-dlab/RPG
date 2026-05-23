@@ -371,6 +371,8 @@ export type LegacyEquipmentData = Array<{
 export type LegacyEnemyUnit = {
   이름: string;
   spawn_rate?: number;
+  sprite?: string;
+  texturePath?: string;
   체력: number;
   공격력: number;
   경험치: number;
@@ -393,6 +395,8 @@ export type LegacyBossData = Record<
     방어력: number;
     속도: number;
     명중률: number;
+    sprite?: string;
+    texturePath?: string;
     특수능력?: { 이름: string; MP소모: number; 능력: string } | null;
   }
 >;

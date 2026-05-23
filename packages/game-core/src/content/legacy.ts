@@ -21,7 +21,7 @@ import {
   getSceneLayoutId,
   getSceneThemeId,
 } from "./sceneMetadata";
-import { getEnemyTexturePath } from "./enemyTextures";
+import { resolveEnemyTexturePath } from "./enemyTextures";
 import { getEquipmentSlot, getEquipmentTexturePath } from "./equipmentTextures";
 import { toLocationKey, toStableId } from "../utils/id";
 import { assertValidWorldContent } from "../validation";
@@ -440,7 +440,7 @@ export function buildWorldContentFromLegacy(input: {
     enemyRecords[id] = {
       id,
       name: referenceName,
-      texturePath: getEnemyTexturePath({ name: referenceName, isBoss: true }),
+      texturePath: resolveEnemyTexturePath({ name: referenceName, isBoss: true, ...boss }),
       maxHp: boss.체력,
       attack: boss.공격력,
       defense: boss.방어력,
@@ -526,7 +526,7 @@ export function buildWorldContentFromLegacy(input: {
         enemyRecords[id] = {
           id,
           name: enemy.이름,
-          texturePath: getEnemyTexturePath({ name: enemy.이름, mainLocation, subLocation }),
+          texturePath: resolveEnemyTexturePath({ name: enemy.이름, mainLocation, subLocation, ...enemy }),
           spawnRate: typeof enemy.spawn_rate === "number" && Number.isFinite(enemy.spawn_rate) && enemy.spawn_rate > 0
             ? enemy.spawn_rate
             : 1,
