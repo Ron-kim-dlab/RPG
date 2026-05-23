@@ -1,4 +1,20 @@
+import type { LegacyBossData, LegacyMonsterData } from "../types";
+import legacyBossData from "../../../../game/boss.json";
+import legacyMonsterData from "../../../../game/monster.json";
+
 const GENERATED_MONSTER_ROOT = "/assets/generated/monsters";
+
+type EnemyTextureParams = {
+  name: string;
+  mainLocation?: string;
+  subLocation?: string;
+  isBoss?: boolean;
+};
+
+type EnemyTextureOverride = {
+  sprite?: string;
+  texturePath?: string;
+};
 
 export const ENEMY_TEXTURE_IDS = [
   "slime",
@@ -125,12 +141,7 @@ function byBossName(name: string): EnemyTextureId {
   return DEFAULT_ENEMY_TEXTURE_ID;
 }
 
-export function getEnemyTextureId(params: {
-  name: string;
-  mainLocation?: string;
-  subLocation?: string;
-  isBoss?: boolean;
-}): EnemyTextureId {
+export function getEnemyTextureId(params: EnemyTextureParams): EnemyTextureId {
   const { name, mainLocation = "", subLocation = "", isBoss = false } = params;
   const context = `${mainLocation} ${subLocation} ${name}`;
 
@@ -229,10 +240,50 @@ export function getEnemyTextureId(params: {
   return DEFAULT_ENEMY_TEXTURE_ID;
 }
 
-export function getEnemyTexturePath(params: Parameters<typeof getEnemyTextureId>[0]): string {
+export function getEnemyTexturePath(params: EnemyTextureParams): string {
   return ENEMY_TEXTURES[getEnemyTextureId(params)];
 }
 
+function getConfiguredEnemyTexturePath(record: EnemyTextureOverride): string | undefined {
+  const texturePath = record.sprite ?? record.texturePath;
+  return typeof texturePath === "string" && texturePath.length > 0
+    ? texturePath
+    : undefined;
+}
+
+function collectConfiguredEnemyTexturePaths(): string[] {
+  const texturePaths: string[] = [];
+  const monsters = legacyMonsterData as LegacyMonsterData;
+  const bosses = legacyBossData as LegacyBossData;
+
+  Object.values(monsters).forEach((subLocations) => {
+    Object.values(subLocations).forEach((enemies) => {
+      enemies.forEach((enemy) => {
+        const texturePath = getConfiguredEnemyTexturePath(enemy);
+        if (texturePath) {
+          texturePaths.push(texturePath);
+        }
+      });
+    });
+  });
+
+  Object.values(bosses).forEach((boss) => {
+    const texturePath = getConfiguredEnemyTexturePath(boss);
+    if (texturePath) {
+      texturePaths.push(texturePath);
+    }
+  });
+
+  return texturePaths;
+}
+
+export function resolveEnemyTexturePath(params: EnemyTextureParams & EnemyTextureOverride): string {
+  return getConfiguredEnemyTexturePath(params) ?? getEnemyTexturePath(params);
+}
+
 export function getEnemyTexturePaths(): string[] {
-  return Object.values(ENEMY_TEXTURES);
+  return Array.from(new Set([
+    ...Object.values(ENEMY_TEXTURES),
+    ...collectConfiguredEnemyTexturePaths(),
+  ]));
 }

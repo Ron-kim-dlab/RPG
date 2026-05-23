@@ -16,7 +16,8 @@
         "방어력": 0,
         "속도": 1,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-slime.png"
       },
       {
         "이름": "고블린",
@@ -27,7 +28,8 @@
         "방어력": 1,
         "속도": 1,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-goblin-raider.png"
       },
       {
         "이름": "해골",
@@ -42,7 +44,8 @@
           "이름": "분노",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.공격력 = Math.round(monster.공격력*1.15); }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-skeleton-warrior.png"
       },
       {
         "이름": "도적",
@@ -57,7 +60,8 @@
           "이름": "기습",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 12; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-masked-bandit.png"
       },
       {
         "이름": "들개",
@@ -68,7 +72,8 @@
         "방어력": 1,
         "속도": 2,
         "명중률": 0.91,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-prairie-wolf.png"
       },
       {
         "이름": "초원 늑대",
@@ -83,7 +88,8 @@
           "이름": "울부짖음",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.공격력 = Math.round(monster.공격력*1.1); }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-prairie-wolf.png"
       }
     ],
     "시작의 숲길": [
@@ -96,7 +102,8 @@
         "방어력": 2,
         "속도": 1,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-skeletal-koala.png"
       },
       {
         "이름": "나무 거인",
@@ -111,7 +118,8 @@
           "이름": "자연 치유",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.체력 += 30; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-moss-tree-giant.png"
       },
       {
         "이름": "숲 도깨비",
@@ -126,7 +134,8 @@
           "이름": "풋사과 던지기",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 20; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-forest-imp.png"
       },
       {
         "이름": "덤불 정령",
@@ -141,7 +150,8 @@
           "이름": "덩굴속박",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 18; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-bramble-spirit.png"
       },
       {
         "이름": "숲의 늑대",
@@ -152,7 +162,8 @@
         "방어력": 2,
         "속도": 2,
         "명중률": 0.92,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-prairie-wolf.png"
       }
     ],
     "나무 오두막": []
@@ -181,7 +192,8 @@
         "방어력": 3,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-desert-mummy.png"
       },
       {
         "이름": "사악한 스콜피온",
@@ -192,7 +204,8 @@
         "방어력": 5,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-black-desert-scorpion.png"
       },
       {
         "이름": "뱀파이어 군주",
@@ -207,7 +220,8 @@
           "이름": "흡혈",
           "MP소모": 15,
           "능력": "(monster,user)=>{ const d=Math.round(monster.공격력*0.8); user.체력-=d; monster.체력+=Math.round(d*0.5); }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-vampire-lord.png"
       },
       {
         "이름": "모래 잠복 전갈",
@@ -218,7 +232,8 @@
         "방어력": 4,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-black-desert-scorpion.png"
       },
       {
         "이름": "사막 바실리스크",
@@ -233,7 +248,8 @@
           "이름": "석화의 시선",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 35; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-desert-basilisk.png"
       }
     ],
     "유적의 사막": [
@@ -246,7 +262,8 @@
         "방어력": 4,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-ancient-mural-beast.png"
       },
       {
         "이름": "사암 거인",
@@ -257,7 +274,8 @@
         "방어력": 6,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-sandstone-golem.png"
       },
       {
         "이름": "사막 도적단장",
@@ -272,7 +290,8 @@
           "이름": "연속 베기",
           "MP소모": 10,
           "능력": "(monster,user)=>{ const d=Math.round(monster.공격력*0.6); user.체력-=d; if(user.체력>0) user.체력-=d; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-masked-bandit.png"
       },
       {
         "이름": "유적 파수꾼",
@@ -287,7 +306,8 @@
           "이름": "모래보호막",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.방어력 += 2; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-ruins-guardian.png"
       },
       {
         "이름": "사막 글라디에이터",
@@ -298,7 +318,8 @@
         "방어력": 4,
         "속도": 3,
         "명중률": 0.92,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-desert-gladiator.png"
       }
     ],
     "열기의 사막": [
@@ -311,7 +332,8 @@
         "방어력": 6,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-fire-mummy.png"
       },
       {
         "이름": "더위의 모래인간",
@@ -322,7 +344,8 @@
         "방어력": 8,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-sandstorm-beast.png"
       },
       {
         "이름": "용암 슬러거",
@@ -333,7 +356,8 @@
         "방어력": 7,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-lava-brute.png"
       },
       {
         "이름": "사막 이프리트",
@@ -348,7 +372,8 @@
           "이름": "화염구",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 85; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-desert-ifrit.png"
       }
     ],
     "잃어버린 사막": [
@@ -361,7 +386,8 @@
         "방어력": 8,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-sandstone-golem.png"
       },
       {
         "이름": "모래 초거인",
@@ -372,7 +398,8 @@
         "방어력": 10,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-sandstone-golem.png"
       },
       {
         "이름": "모래 폭풍 괴물",
@@ -387,7 +414,8 @@
           "이름": "모래 폭풍",
           "MP소모": 15,
           "능력": "(monster,user)=>{ user.체력 -= 100; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-sandstorm-beast.png"
       },
       {
         "이름": "모래 웜",
@@ -398,7 +426,8 @@
         "방어력": 8,
         "속도": 2,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-sand-worm.png"
       },
       {
         "이름": "모래폭풍 거상",
@@ -413,7 +442,8 @@
           "이름": "모래 일격",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 120; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-sandstone-golem.png"
       }
     ]
   },
@@ -432,7 +462,8 @@
           "이름": "강화 지팡이",
           "MP소모": 15,
           "능력": "(monster,user)=>{ monster.공격력 = Math.round(monster.공격력*1.2); }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-storm-witch.png"
       },
       {
         "이름": "태풍 요괴",
@@ -443,7 +474,8 @@
         "방어력": 8,
         "속도": 4,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-storm-witch.png"
       },
       {
         "이름": "질풍 기사",
@@ -458,7 +490,8 @@
           "이름": "순풍",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.속도 += 1; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-gale-knight.png"
       }
     ],
     "얼음 산길": [
@@ -475,7 +508,8 @@
           "이름": "혹한",
           "MP소모": 15,
           "능력": "(monster,user)=>{ user.체력 -= 140; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-frost-witch.png"
       },
       {
         "이름": "빙결 괴인",
@@ -486,7 +520,8 @@
         "방어력": 10,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-ice-brute.png"
       },
       {
         "이름": "빙설 정령",
@@ -501,7 +536,8 @@
           "이름": "서리바람",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 150; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-snow-spirit.png"
       }
     ],
     "불꽃 산길": [
@@ -518,7 +554,8 @@
           "이름": "발화",
           "MP소모": 15,
           "능력": "(monster,user)=>{ user.체력 -= 160; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-rage-fire-witch.png"
       },
       {
         "이름": "불꽃 요괴",
@@ -529,7 +566,8 @@
         "방어력": 10,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-fire-yokai.png"
       },
       {
         "이름": "화염 정령",
@@ -544,7 +582,8 @@
           "이름": "불꽃 폭발",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 170; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-flame-spirit.png"
       }
     ],
     "잃어버린 산길": [
@@ -561,7 +600,8 @@
           "이름": "혼란 파장",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 120; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-confusion-ghost.png"
       },
       {
         "이름": "혼란 유령 왕",
@@ -576,7 +616,8 @@
           "이름": "광란",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.공격력 = Math.round(monster.공격력*1.15); }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-ghost-king.png"
       },
       {
         "이름": "광란의 고릴라",
@@ -591,7 +632,8 @@
           "이름": "광폭화",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.공격력 = Math.round(monster.공격력*1.1); }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-berserk-ape.png"
       }
     ]
   },
@@ -610,7 +652,8 @@
           "이름": "진흙 던지기",
           "MP소모": 0,
           "능력": "(monster,user)=>{ user.체력 -= 220; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-mud-giant.png"
       },
       {
         "이름": "진흙 거인 왕",
@@ -625,7 +668,8 @@
           "이름": "진흙 던지기",
           "MP소모": 0,
           "능력": "(monster,user)=>{ user.체력 -= 260; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-mud-giant.png"
       },
       {
         "이름": "난폭한 하마",
@@ -636,7 +680,8 @@
         "방어력": 12,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-river-hippo.png"
       },
       {
         "이름": "늪의 망령",
@@ -651,7 +696,8 @@
           "이름": "침식",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 240; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-mist-wraith.png"
       }
     ],
     "연못의 습지": [
@@ -664,7 +710,8 @@
         "방어력": 10,
         "속도": 4,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-angry-frog.png"
       },
       {
         "이름": "습도 요괴",
@@ -679,7 +726,8 @@
           "이름": "수분폭발",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 240; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-moisture-yokai.png"
       },
       {
         "이름": "난폭한 개구리 왕",
@@ -690,7 +738,8 @@
         "방어력": 12,
         "속도": 4,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-angry-frog.png"
       },
       {
         "이름": "거대 초록개구리",
@@ -701,7 +750,8 @@
         "방어력": 12,
         "속도": 4,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-angry-frog.png"
       }
     ],
     "안개 늪": [
@@ -714,7 +764,8 @@
         "방어력": 12,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-fog-zombie.png"
       },
       {
         "이름": "수액 슬라임",
@@ -729,7 +780,8 @@
           "이름": "수액 치유",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.체력 += 300; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-sap-slime.png"
       },
       {
         "이름": "안개 좀비 왕",
@@ -744,7 +796,8 @@
           "이름": "흉성포효",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 260; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-fog-zombie.png"
       },
       {
         "이름": "안개의 망령",
@@ -759,7 +812,8 @@
           "이름": "공포",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 260; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-mist-wraith.png"
       }
     ],
     "수초의 습지": [
@@ -776,7 +830,8 @@
           "이름": "덩굴채찍",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 280; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-reed-dryad.png"
       },
       {
         "이름": "수액 슬라임 왕",
@@ -791,7 +846,8 @@
           "이름": "대치유",
           "MP소모": 15,
           "능력": "(monster,user)=>{ monster.체력 += 500; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-sap-slime.png"
       },
       {
         "이름": "수초 드레이드 왕",
@@ -806,7 +862,8 @@
           "이름": "씨앗난사",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 300; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-reed-dryad.png"
       },
       {
         "이름": "늪의 하이드라",
@@ -821,7 +878,8 @@
           "이름": "재생",
           "MP소모": 12,
           "능력": "(monster,user)=>{ monster.체력 += 700; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-swamp-hydra.png"
       }
     ]
   },
@@ -842,7 +900,8 @@
         "방어력": 14,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-water-giant.png"
       },
       {
         "이름": "난폭한 물의 정령",
@@ -857,7 +916,8 @@
           "이름": "물의 힘",
           "MP소모": 15,
           "능력": "(monster,user)=>{ user.체력 -= 360; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-water-spirit.png"
       },
       {
         "이름": "빙류 정령",
@@ -872,7 +932,8 @@
           "이름": "얼음화살",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 380; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-ice-current-spirit.png"
       }
     ],
     "중류": [
@@ -885,7 +946,8 @@
         "방어력": 16,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-waterfall-guardian.png"
       },
       {
         "이름": "폭포의 대수호자",
@@ -896,7 +958,8 @@
         "방어력": 18,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-waterfall-guardian.png"
       },
       {
         "이름": "소용돌이 정령",
@@ -911,7 +974,8 @@
           "이름": "회전격",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 420; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-whirlpool-spirit.png"
       }
     ],
     "하류": [
@@ -928,7 +992,8 @@
           "이름": "물의 힘",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 420; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-river-dragon.png"
       },
       {
         "이름": "강의 지배자",
@@ -939,7 +1004,8 @@
         "방어력": 20,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-river-dragon.png"
       },
       {
         "이름": "바다의 지배자",
@@ -950,7 +1016,8 @@
         "방어력": 20,
         "속도": 3,
         "명중률": 0.9,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-river-dragon.png"
       },
       {
         "이름": "강 하구 수룡",
@@ -965,7 +1032,8 @@
           "이름": "급류",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 500; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-river-dragon.png"
       }
     ]
   },
@@ -990,7 +1058,8 @@
           "이름": "등껍질 단단화",
           "MP소모": 10,
           "능력": "(monster,user)=>{ monster.방어력 += 6; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-crystal-turtle.png"
       },
       {
         "이름": "물결 춤추는 해파리",
@@ -1005,7 +1074,8 @@
           "이름": "감전촉수",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 520; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-glowing-jellyfish.png"
       },
       {
         "이름": "빛나는 넙치",
@@ -1020,7 +1090,8 @@
           "이름": "섬광",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 540; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-luminous-flatfish.png"
       }
     ],
     "깊은 바다": [
@@ -1037,7 +1108,8 @@
           "이름": "심연의 힘",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 650; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-abyss-predator.png"
       },
       {
         "이름": "그림자 촉수 괴물",
@@ -1052,7 +1124,8 @@
           "이름": "촉수",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 600; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-shadow-tentacle.png"
       },
       {
         "이름": "암흑 해룡",
@@ -1067,7 +1140,8 @@
           "이름": "심해포효",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 680; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-dark-sea-dragon.png"
       }
     ],
     "폭풍의 바다": [
@@ -1084,7 +1158,8 @@
           "이름": "방전",
           "MP소모": 10,
           "능력": "(monster,user)=>{ user.체력 -= 700; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-thunder-manta.png"
       },
       {
         "이름": "번개 삼지창 정령",
@@ -1099,7 +1174,8 @@
           "이름": "삼지창 투척",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 760; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-lightning-trident-spirit.png"
       },
       {
         "이름": "뇌광 해룡",
@@ -1114,7 +1190,8 @@
           "이름": "낙뢰",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 780; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-dark-sea-dragon.png"
       }
     ],
     "어둠의 바다": [
@@ -1131,7 +1208,8 @@
           "이름": "침 사격",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 820; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-abyss-urchin.png"
       },
       {
         "이름": "공허의 촉수 군주",
@@ -1146,7 +1224,8 @@
           "이름": "촉수교란",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 900; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-shadow-tentacle.png"
       },
       {
         "이름": "그림자 상어",
@@ -1161,7 +1240,8 @@
           "이름": "그림자돌진",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 900; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-shadow-shark.png"
       }
     ]
   },
@@ -1182,7 +1262,8 @@
         "방어력": 26,
         "속도": 6,
         "명중률": 0.93,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-floating-sky-eye.png"
       },
       {
         "이름": "다크 레이븐",
@@ -1197,7 +1278,8 @@
           "이름": "그림자 일격",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 980; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-dark-raven.png"
       },
       {
         "이름": "스카이 와이번",
@@ -1208,7 +1290,8 @@
         "방어력": 26,
         "속도": 7,
         "명중률": 0.93,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-sky-wyvern.png"
       }
     ],
     "맑은 하늘": [
@@ -1221,7 +1304,8 @@
         "방어력": 26,
         "속도": 7,
         "명중률": 0.93,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-sky-lich.png"
       },
       {
         "이름": "에어 골렘",
@@ -1232,7 +1316,8 @@
         "방어력": 28,
         "속도": 6,
         "명중률": 0.92,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-air-golem.png"
       },
       {
         "이름": "제피로스 정령",
@@ -1247,7 +1332,8 @@
           "이름": "순풍강화",
           "MP소모": 12,
           "능력": "(monster,user)=>{ monster.공격력 = Math.round(monster.공격력*1.08); }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-zephyr-spirit.png"
       }
     ],
     "구름 하늘": [
@@ -1264,7 +1350,8 @@
           "이름": "번개",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 1200; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-thunder-drake.png"
       },
       {
         "이름": "번개 삼지창 정령",
@@ -1279,7 +1366,8 @@
           "이름": "방전창",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 1300; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-lightning-trident-spirit.png"
       },
       {
         "이름": "뇌우 정령",
@@ -1294,7 +1382,8 @@
           "이름": "전격난류",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 1350; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-thunder-drake.png"
       }
     ],
     "황혼 하늘": [
@@ -1307,7 +1396,8 @@
         "방어력": 30,
         "속도": 7,
         "명중률": 0.93,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-classic-dragon.png"
       },
       {
         "이름": "뱀파이어 드래곤",
@@ -1322,7 +1412,8 @@
           "이름": "흡혈",
           "MP소모": 15,
           "능력": "(monster,user)=>{ const d=Math.round(monster.공격력*0.7); user.체력-=d; monster.체력+=Math.round(d*0.5); }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-vampire-dragon.png"
       },
       {
         "이름": "황혼의 드레이크",
@@ -1337,7 +1428,8 @@
           "이름": "황혼탄식",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 1450; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-thunder-drake.png"
       }
     ]
   },
@@ -1358,7 +1450,8 @@
         "방어력": 30,
         "속도": 8,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "수성의 위성",
@@ -1369,7 +1462,8 @@
         "방어력": 30,
         "속도": 8,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "수성의 파수기",
@@ -1380,7 +1474,8 @@
         "방어력": 30,
         "속도": 8,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       }
     ],
     "금성": [
@@ -1393,7 +1488,8 @@
         "방어력": 32,
         "속도": 8,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "금성의 위성",
@@ -1404,7 +1500,8 @@
         "방어력": 32,
         "속도": 8,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "금성의 방열드론",
@@ -1419,7 +1516,8 @@
           "이름": "과열",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 1400; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-heat-drone.png"
       }
     ],
     "화성": [
@@ -1432,7 +1530,8 @@
         "방어력": 34,
         "속도": 8,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "화성의 위성",
@@ -1443,7 +1542,8 @@
         "방어력": 34,
         "속도": 8,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "화성의 강철병기",
@@ -1454,7 +1554,8 @@
         "방어력": 34,
         "속도": 8,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-steel-war-machine.png"
       }
     ],
     "목성": [
@@ -1467,7 +1568,8 @@
         "방어력": 36,
         "속도": 9,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "목성의 위성",
@@ -1478,7 +1580,8 @@
         "방어력": 36,
         "속도": 9,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "목성의 폭풍탑재기",
@@ -1493,7 +1596,8 @@
           "이름": "거대폭풍",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 2000; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-storm-aircraft.png"
       }
     ],
     "토성": [
@@ -1510,7 +1614,8 @@
           "이름": "고리방전",
           "MP소모": 12,
           "능력": "(monster,user)=>{ user.체력 -= 1600; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "토성의 위성",
@@ -1521,7 +1626,8 @@
         "방어력": 36,
         "속도": 9,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "토성의 고리수호병",
@@ -1532,7 +1638,8 @@
         "방어력": 36,
         "속도": 9,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-ring-guardian.png"
       }
     ],
     "천왕성": [
@@ -1545,7 +1652,8 @@
         "방어력": 38,
         "속도": 9,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "천왕성의 위성",
@@ -1556,7 +1664,8 @@
         "방어력": 38,
         "속도": 9,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "천왕성의 냉기코어",
@@ -1571,7 +1680,8 @@
           "이름": "절대영도",
           "MP소모": 15,
           "능력": "(monster,user)=>{ user.체력 -= 2300; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-frost-core.png"
       }
     ],
     "해왕성": [
@@ -1584,7 +1694,8 @@
         "방어력": 38,
         "속도": 9,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "해왕성의 위성",
@@ -1595,7 +1706,8 @@
         "방어력": 38,
         "속도": 9,
         "명중률": 0.94,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-satellite-drone.png"
       },
       {
         "이름": "해왕성의 심해코어",
@@ -1606,7 +1718,8 @@
         "방어력": 38,
         "속도": 9,
         "명중률": 0.95,
-        "특수능력": null
+        "특수능력": null,
+        "sprite": "/assets/generated/monsters/monster-frost-core.png"
       }
     ],
     "폐허의 세계": [
@@ -1623,7 +1736,8 @@
           "이름": "암흑",
           "MP소모": 15,
           "능력": "(monster,user)=>{ user.체력 -= 2200; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-grave-wraith.png"
       },
       {
         "이름": "살아있는 무덤",
@@ -1638,7 +1752,8 @@
           "이름": "절망의 포효",
           "MP소모": 15,
           "능력": "(monster,user)=>{ user.체력 -= 2400; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-grave-wraith.png"
       },
       {
         "이름": "망각의 악귀",
@@ -1653,7 +1768,8 @@
           "이름": "망각의 낙인",
           "MP소모": 15,
           "능력": "(monster,user)=>{ user.체력 -= 2600; }"
-        }
+        },
+        "sprite": "/assets/generated/monsters/monster-grave-wraith.png"
       }
     ]
   },

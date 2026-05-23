@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import map from "../../../game/map.json";
 import monster from "../../../game/monster.json";
 import boss from "../../../game/boss.json";
+import sceneLayouts from "../../../game/scene-layouts.json";
 import equipment from "../../../game/equipment.json";
 import skill from "../../../game/skill.json";
 import tactics from "../../../game/tactics.json";
@@ -10,6 +11,7 @@ import {
   createSceneLayout,
   createScenePortalSlots,
   validateWorldContent,
+  type LegacyBossData,
   type LegacyMonsterData,
 } from "../src";
 
@@ -121,6 +123,34 @@ describe("legacy content conversion", () => {
     expect(convertedEnemy?.spawnRate).toBe(7);
   });
 
+  it("uses monster and boss sprite paths declared in legacy JSON data", () => {
+    const monstersWithSprites = structuredClone(monster) as LegacyMonsterData;
+    const bossesWithSprites = structuredClone(boss) as LegacyBossData;
+    const firstMonster = Object.values(monstersWithSprites)
+      .flatMap((subLocations) => Object.values(subLocations))
+      .find((enemies) => enemies.length > 0)?.[0];
+    const firstBossEntry = Object.entries(bossesWithSprites)[0];
+    expect(firstMonster).toBeTruthy();
+    expect(firstBossEntry).toBeTruthy();
+
+    firstMonster!.sprite = "/assets/generated/monsters/monster-dark-raven.png";
+    firstBossEntry![1].sprite = "/assets/generated/monsters/monster-demon-lord.png";
+
+    const world = buildWorldContentFromLegacy({
+      map,
+      monsters: monstersWithSprites,
+      bosses: bossesWithSprites,
+      equipment: equipment as never,
+      skills: skill as never,
+      tactics: tactics as never,
+    });
+
+    const convertedEnemy = Object.values(world.enemies).find((enemy) => enemy.name === firstMonster!.이름 && !enemy.isBoss);
+    const convertedBoss = Object.values(world.enemies).find((enemy) => enemy.name === firstBossEntry![0] && enemy.isBoss);
+    expect(convertedEnemy?.texturePath).toBe(firstMonster!.sprite);
+    expect(convertedBoss?.texturePath).toBe(firstBossEntry![1].sprite);
+  });
+
   it("splits monster fields into four visible encounter zones", () => {
     const world = buildWorldContentFromLegacy({
       map,
@@ -177,5 +207,25 @@ describe("legacy content conversion", () => {
         expect(rectanglesOverlap(slot, otherSlot)).toBe(false);
       });
     });
+  });
+
+  it("loads scene layout coordinates from JSON data without sharing mutable state", () => {
+    const layout = createSceneLayout("field");
+    const fieldLayoutData = sceneLayouts.layouts.field;
+
+    expect(layout.spawn).toEqual(fieldLayoutData.spawn);
+    expect(layout.npcAnchor).toEqual(fieldLayoutData.npcAnchor);
+    expect(layout.encounterZone).toEqual(fieldLayoutData.encounterZone);
+    expect(layout.portalSlots).toEqual(fieldLayoutData.portalSlots);
+    expect(layout.collisionZones).toEqual(fieldLayoutData.collisionZones);
+
+    layout.spawn.x = 0;
+    layout.portalSlots[0]!.x = 0;
+    layout.collisionZones[0]!.x = 0;
+
+    const freshLayout = createSceneLayout("field");
+    expect(freshLayout.spawn.x).toBe(fieldLayoutData.spawn.x);
+    expect(freshLayout.portalSlots[0]!.x).toBe(fieldLayoutData.portalSlots[0]!.x);
+    expect(freshLayout.collisionZones[0]!.x).toBe(fieldLayoutData.collisionZones[0]!.x);
   });
 });
