@@ -113,6 +113,12 @@ const FIELD_FLOOR_TEXTURES: Partial<Record<SceneThemeId, string>> = {
   castle: `${GENERATED_SCENE_ROOT}/floor-castle-field.png`,
 };
 
+const INTERIOR_FLOOR_TEXTURES: Partial<Record<SceneLayoutId, string>> = {
+  shop: `${GENERATED_SCENE_ROOT}/floor-shop-interior.png`,
+  inn: `${GENERATED_SCENE_ROOT}/floor-inn-interior.png`,
+  skill_shop: `${GENERATED_SCENE_ROOT}/floor-skill-shop-interior.png`,
+};
+
 const LAYOUT_PROP_TEXTURES: Partial<Record<SceneLayoutId, Record<string, string>>> = {
   town_gate: {
     "guard-booth": `${GENERATED_SCENE_ROOT}/prop-town-guard-booth.png`,
@@ -401,6 +407,7 @@ export function getGeneratedSceneTexturePaths(): string[] {
   return Array.from(new Set([
     ...Object.values(VILLAGE_FLOOR_TEXTURES),
     ...Object.values(FIELD_FLOOR_TEXTURES),
+    ...Object.values(INTERIOR_FLOOR_TEXTURES),
     ...Object.values(LAYOUT_PROP_TEXTURES).flatMap((texturePaths) => (
       texturePaths ? Object.values(texturePaths) : []
     )),
@@ -413,7 +420,8 @@ export function getDeathGraveTexturePath(): string {
 }
 
 export function getSceneAssetBundle(themeId: SceneThemeId, layoutId: SceneLayoutId, mainLocation?: string): SceneAssetBundle {
-  const floorTexturePath = mainLocation ? getSceneFloorTexturePath(mainLocation, themeId) : FIELD_FLOOR_TEXTURES[themeId];
+  const floorTexturePath = INTERIOR_FLOOR_TEXTURES[layoutId]
+    ?? (mainLocation ? getSceneFloorTexturePath(mainLocation, themeId) : FIELD_FLOOR_TEXTURES[themeId]);
   const propTexturePaths = getScenePropTexturePaths(layoutId);
 
   return {

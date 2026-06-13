@@ -10,6 +10,8 @@ import {
   buildWorldContentFromLegacy,
   createSceneLayout,
   createScenePortalSlots,
+  getSceneAssetBundle,
+  getSceneAssetManifest,
   validateWorldContent,
   type LegacyBossData,
   type LegacyMonsterData,
@@ -206,6 +208,23 @@ describe("legacy content conversion", () => {
       slots.slice(index + 1).forEach((otherSlot) => {
         expect(rectanglesOverlap(slot, otherSlot)).toBe(false);
       });
+    });
+  });
+
+  it("uses dedicated generated floor textures for indoor village layouts", () => {
+    const expectedInteriorFloors = [
+      "/assets/generated/scenes/floor-shop-interior.png",
+      "/assets/generated/scenes/floor-inn-interior.png",
+      "/assets/generated/scenes/floor-skill-shop-interior.png",
+    ];
+
+    expect(getSceneAssetBundle("village", "shop").floorTexturePath).toBe(expectedInteriorFloors[0]);
+    expect(getSceneAssetBundle("village", "inn").floorTexturePath).toBe(expectedInteriorFloors[1]);
+    expect(getSceneAssetBundle("village", "skill_shop").floorTexturePath).toBe(expectedInteriorFloors[2]);
+
+    const manifest = getSceneAssetManifest();
+    expectedInteriorFloors.forEach((texturePath) => {
+      expect(manifest.texturePaths).toContain(texturePath);
     });
   });
 

@@ -81,6 +81,7 @@ const REMOTE_INTERPOLATION_SPEED = 12;
 const REMOTE_SNAP_DISTANCE = 240;
 const LOCAL_PLAYER_SYNC_SNAP_DISTANCE = 96;
 const OBSTACLE_SPEED_MULTIPLIER = 0.35;
+const OBSTACLE_SPEED_FREE_LAYOUT_IDS = new Set(["shop", "inn", "skill_shop"]);
 const MONSTER_CONTACT_DISTANCE = 42;
 const BOSS_CONTACT_DISTANCE = 58;
 const GRAVE_INTERACTION_DISTANCE = 58;
@@ -1006,6 +1007,10 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   private getObstacleSpeedMultiplier(currentX: number, currentY: number, intendedX: number, intendedY: number): number {
+    if (this.sceneDefinition && OBSTACLE_SPEED_FREE_LAYOUT_IDS.has(this.sceneDefinition.assets.layoutId)) {
+      return 1;
+    }
+
     const size = 20;
     const currentHitbox = new Phaser.Geom.Rectangle(currentX - size / 2, currentY - size / 2, size, size);
     const intendedHitbox = new Phaser.Geom.Rectangle(intendedX - size / 2, intendedY - size / 2, size, size);
